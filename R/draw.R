@@ -125,10 +125,14 @@ build_shape <- function(s, theme, lw) {
       base_r <- 50 * 0.9 * size
       rc <- clamp(round(p$ringCount %||% 1), 1, 4)
       gap <- p$gap %||% 0.15
+      # legibility floor: consecutive rings stay at least strokeWidth + 2.5
+      # units apart, otherwise thick strokes at small sizes merge into a blob
+      # (the web renderer lets them merge)
+      spacing <- max(gap * base_r, sw + 2.5)
       grobs <- list()
       for (i in 0:(rc - 1)) {
-        r <- base_r * (1 - i * gap)
-        if (r <= 0) break
+        r <- base_r - i * spacing
+        if (r <= sw / 2) break
         grobs[[length(grobs) + 1]] <- circleGrob(
           50, 50, r, default.units = "native",
           gp = gpar(col = stroke, fill = if (i == 0) fill else NA, lwd = lwd_of(sw))
