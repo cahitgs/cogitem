@@ -212,6 +212,9 @@ gen_progression <- function(shape, n_options) {
   if (primary$kind == "attr" && secondary$kind == "attr" && primary$name == secondary$name) {
     secondary <- list(kind = "attr", name = "strokeWidth", values = c(1, 3, 6))
   }
+  # Up to four thick rings need room: keep annulus items large when the row
+  # axis is stroke width, otherwise the rings of the bottom row merge.
+  if (shape == "annulus" && secondary$name == "strokeWidth") base$size <- 0.92
   cells <- lapply(1:3, function(r) {
     lapply(1:3, function(c) {
       cell <- apply_axis(base, primary, primary$values[c])

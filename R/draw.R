@@ -125,14 +125,16 @@ build_shape <- function(s, theme, lw) {
       base_r <- 50 * 0.9 * size
       rc <- clamp(round(p$ringCount %||% 1), 1, 4)
       gap <- p$gap %||% 0.15
-      # legibility floor: consecutive rings stay at least strokeWidth + 2.5
-      # units apart, otherwise thick strokes at small sizes merge into a blob
-      # (the web renderer lets them merge)
+      # Always draw exactly `ringCount` rings. Legibility floor: consecutive
+      # rings stay at least strokeWidth + 2.5 units apart when there is room
+      # (the web renderer lets thick strokes merge); when there is not, the
+      # spacing shrinks so that the innermost ring still has a radius of at
+      # least strokeWidth / 2 + 1.
       spacing <- max(gap * base_r, sw + 2.5)
+      if (rc > 1) spacing <- min(spacing, (base_r - (sw / 2 + 1)) / (rc - 1))
       grobs <- list()
       for (i in 0:(rc - 1)) {
-        r <- base_r - i * spacing
-        if (r <= sw / 2) break
+        r <- max(sw / 2 + 1, base_r - i * spacing)
         grobs[[length(grobs) + 1]] <- circleGrob(
           50, 50, r, default.units = "native",
           gp = gpar(col = stroke, fill = if (i == 0) fill else NA, lwd = lwd_of(sw))
@@ -416,7 +418,10 @@ build_sector_pie <- function(s, stroke, lwd_of) {
       gp = gpar(col = stroke, fill = if (pid == 1) stroke else NA, lwd = sector_lwd)
     )
     if (pid >= 2) {
-      grobs <- c(grobs, sector_pattern_grobs(pid, r, a0, a1, stroke, lwd_of(1)))
+      # textures are drawn heavier than in the web app (1.6 instead of 1 unit
+      # lines, 1.7 instead of 1.2 unit dots) so that a textured sector stays
+      # legible at cell size
+      grobs <- c(grobs, sector_pattern_grobs(pid, r, a0, a1, stroke, lwd_of(1.6)))
     }
   }
   grobs[[length(grobs) + 1]] <- circleGrob(50, 50, r, default.units = "native",
@@ -463,11 +468,11 @@ sector_pattern_grobs <- function(pid, r, a0, a1, colour, lwd) {
   if (pid == 2) {
     g <- expand.grid(x = seq(3, 97, by = 6), y = seq(3, 97, by = 6))
     vx <- g$x - 50; vy <- g$y - 50
-    inside <- sqrt(vx^2 + vy^2) <= r - 1.4 &
+    inside <- sqrt(vx^2 + vy^2) <= r - 1.9 &
       cross2(cos(a0), sin(a0), vx, vy) >= 0 &
       cross2(cos(a1), sin(a1), vx, vy) <= 0
     if (any(inside)) {
-      out[[1]] <- circleGrob(g$x[inside], g$y[inside], r = 1.2, default.units = "native",
+      out[[1]] <- circleGrob(g$x[inside], g$y[inside], r = 1.7, default.units = "native",
                              gp = gpar(fill = colour, col = NA))
     }
     return(out)
