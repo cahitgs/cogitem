@@ -17,9 +17,13 @@ is_item_valid(item, n_options = NULL)
 \description{
 An item passes when (a) every response option has a different
 \code{\link[=visual_signature]{visual_signature()}}, (b) no two options differ only by an imperceptibly
-small count (for example 15 versus 16 spikes), (c) the keyed option
-reproduces the missing cell and (d) the rule is visible in the matrix
-(three distinct cells in the first row of a distribution item, both axes
-visible in a progression item, and so on). \code{\link[=generate_items]{generate_items()}} discards
-items that fail this check.
+small count (for example 15 versus 16 spikes) or by a single cell of a
+large checkerboard, (c) no two differing cells of the same row (and, for
+rules that also run down the columns, of the same column) differ only by
+an imperceptibly small count, (d) the keyed option reproduces the missing
+cell and (e) the rule is visible in the matrix (three distinct cells in
+the first row of a distribution item, both axes visible in a progression
+item, and so on). \code{\link[=generate_items]{generate_items()}} discards items that fail this check.
+These rules are symbolic; the renderer-based \code{\link[=audit_items]{audit_items()}} complements
+them.
 }

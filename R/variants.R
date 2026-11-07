@@ -28,7 +28,7 @@ variants_annulus <- function() {
       default_shape("annulus", list(ringCount = base_rings + 1, gap = base_gap),
                     stroke = stk, size = base_size, strokeWidth = base_sw)
     }),
-    strokeWidth = lapply(sort(rsample(c(1, 2, 4, 6), 3)), function(sw) {
+    strokeWidth = lapply(sort(rsample(c(1, 3, 6), 3)), function(sw) {
       default_shape("annulus", list(ringCount = base_rings + 1, gap = base_gap),
                     stroke = stroke, size = base_size, strokeWidth = sw)
     })
@@ -85,7 +85,7 @@ variants_polygon <- function() {
       default_shape("polygon", list(sides = base_sides), stroke = stk,
                     size = base_size, strokeWidth = base_sw)
     }),
-    strokeWidth = lapply(sort(rsample(c(1, 2, 4, 6), 3)), function(sw) {
+    strokeWidth = lapply(sort(rsample(c(1, 3, 6), 3)), function(sw) {
       default_shape("polygon", list(sides = base_sides), stroke = stroke,
                     size = base_size, strokeWidth = sw)
     })
@@ -106,9 +106,9 @@ variants_star <- function() {
       default_shape("star", list(points = p, innerRatio = base_ir),
                     stroke = stroke, size = base_size, strokeWidth = base_sw)
     }),
-    innerRatio = lapply(sort(rsample(c(0.25, 0.35, 0.5, 0.6), 3)), function(ir) {
+    innerRatio = lapply(sort(rsample(c(0.25, 0.4, 0.6), 3)), function(ir) {
       default_shape("star", list(points = base_points, innerRatio = ir),
-                    stroke = stroke, size = base_size, strokeWidth = base_sw)
+                    stroke = stroke, size = max(base_size, 0.75), strokeWidth = base_sw)
     }),
     size = lapply(sort(rsample(c(0.5, 0.65, 0.8, 0.95), 3)), function(sz) {
       default_shape("star", list(points = base_points, innerRatio = base_ir),
@@ -168,9 +168,9 @@ variants_petals <- function() {
       default_shape("petals", list(petalCount = n, petalWidth = base_width),
                     stroke = stroke, size = base_size, strokeWidth = base_sw)
     }),
-    petalWidth = lapply(sort(rsample(c(0.06, 0.1, 0.16, 0.22), 3)), function(w) {
+    petalWidth = lapply(sort(rsample(c(0.06, 0.12, 0.22), 3)), function(w) {
       default_shape("petals", list(petalCount = base_count, petalWidth = w),
-                    stroke = stroke, size = base_size, strokeWidth = base_sw)
+                    stroke = stroke, size = max(base_size, 0.75), strokeWidth = base_sw)
     }),
     size = lapply(sort(rsample(c(0.5, 0.65, 0.8, 0.95), 3)), function(sz) {
       default_shape("petals", list(petalCount = base_count, petalWidth = base_width),
@@ -374,7 +374,7 @@ variants_box_lines <- function() {
     },
     size = lapply(sort(rsample(c(0.5, 0.65, 0.8, 0.95), 3)), function(sz) mk(base_mask, sz = sz)),
     stroke = lapply(rsample(STROKE_PALETTE, 3), function(stk) mk(base_mask, stk = stk)),
-    strokeWidth = lapply(sort(rsample(c(1, 2, 4, 6), 3)), function(sw) mk(base_mask, sw = sw))
+    strokeWidth = lapply(sort(rsample(c(1, 3, 6), 3)), function(sw) mk(base_mask, sw = sw))
   )
   with_axis(out, axis)
 }
@@ -395,9 +395,11 @@ variants_nested_polygon <- function() {
   out <- switch(
     axis,
     outerSides = lapply(sort(rsample(3:8, 3)), function(s) mk(s, base_inner, base_scale)),
-    innerSides = lapply(sort(rsample(3:8, 3)), function(s) mk(base_outer, s, base_scale)),
+    innerSides = lapply(c(3, 4, 6), function(s) {
+      mk(base_outer, s, max(base_scale, 0.5), sz = max(base_size, 0.75))
+    }),
     innerScale = lapply(sort(rsample(c(0.3, 0.45, 0.6, 0.75), 3)), function(s) {
-      mk(base_outer, base_inner, s)
+      mk(base_outer, base_inner, s, sz = max(base_size, 0.75))
     }),
     size = lapply(sort(rsample(c(0.5, 0.65, 0.8, 0.95), 3)), function(sz) {
       mk(base_outer, base_inner, base_scale, sz = sz)

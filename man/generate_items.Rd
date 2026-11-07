@@ -10,7 +10,9 @@ generate_items(
   n = 10,
   seed = NULL,
   n_options = 4,
-  max_attempts = NULL
+  max_attempts = NULL,
+  perceptual = FALSE,
+  perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD
 )
 }
 \arguments{
@@ -28,11 +30,20 @@ the result so the batch can be reproduced.}
 is correct; the rest are distractors.}
 
 \item{max_attempts}{Maximum number of generation attempts before giving up.}
+
+\item{perceptual}{Also run the renderer-based \code{\link[=audit_item]{audit_item()}} on every
+candidate and discard items whose options or cells are perceptually
+confusable. Slower (each item is rasterised) and needs \strong{ragg} or a
+cairo-capable R; the result is reproducible for a given seed on the same
+graphics stack.}
+
+\item{perceptual_threshold}{Distance below which two renderings count as
+confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 }
 \value{
 An object of class \code{cog_item_set}: a list of \code{cog_item} objects
 with a \code{meta} attribute (shape, rule, seed, counts of skipped
-duplicates and invalid attempts).
+duplicates, invalid and perceptually ambiguous attempts).
 }
 \description{
 Produces \code{n} distinct, validated 3x3 matrix items for one shape-rule
@@ -49,5 +60,5 @@ plot(items[[1]])
 }
 \seealso{
 \code{\link[=generate_item]{generate_item()}}, \code{\link[=generate_mixed]{generate_mixed()}}, \code{\link[=item_features]{item_features()}},
-\code{\link[=write_items_json]{write_items_json()}}, \code{\link[=run_app]{run_app()}}
+\code{\link[=audit_items]{audit_items()}}, \code{\link[=write_items_json]{write_items_json()}}, \code{\link[=run_app]{run_app()}}
 }

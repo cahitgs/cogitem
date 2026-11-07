@@ -96,14 +96,14 @@ candidate_perturbations <- function(correct) {
 make_distinct_distractors <- function(correct, siblings, count) {
   seen <- visual_signature(correct)
   out <- list()
-  confusable <- function(c) {
-    if (count_confusable(correct, c)) return(TRUE)
-    for (o in out) if (count_confusable(o, c)) return(TRUE)
+  is_confusable <- function(c) {
+    if (confusable(correct, c)) return(TRUE)
+    for (o in out) if (confusable(o, c)) return(TRUE)
     FALSE
   }
   add <- function(s, default_tier) {
     sig <- visual_signature(s)
-    if (sig %in% seen || confusable(s)) return(FALSE)
+    if (sig %in% seen || is_confusable(s)) return(FALSE)
     seen <<- c(seen, sig)
     out[[length(out) + 1]] <<- tag_tier(s, attr(s, "tier") %||% default_tier)
     TRUE

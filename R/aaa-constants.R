@@ -31,6 +31,9 @@ RULES <- c(
   "and", "or", "xor", "xnor"
 )
 
+# Rules whose relation runs along rows only (column values are unrelated).
+ROW_ONLY_RULES <- c("addition", "subtraction", "multiplication", "and", "or", "xor", "xnor")
+
 RULE_FAMILY <- c(
   identity = "constant",
   "dist-of-3" = "distribution",

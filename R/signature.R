@@ -128,3 +128,25 @@ count_confusable <- function(a, b) {
   if (count_stripped_signature(a) != count_stripped_signature(b)) return(FALSE)
   abs(av - bv) < min_perceptible_count_delta(a$kind, max(av, bv))
 }
+
+popcount <- function(x) sum(as.integer(intToBits(as.integer(x))))
+
+# TRUE when two checkerboards of the same geometry differ in too few cells to
+# be told apart (one cell out of nine or more).
+pattern_confusable <- function(a, b) {
+  if (a$kind != "checkerboard" || b$kind != "checkerboard") return(FALSE)
+  pa <- round(a$params$pattern %||% 0)
+  pb <- round(b$params$pattern %||% 0)
+  if (pa == pb) return(FALSE)
+  if (visual_signature(shape_param(a, "pattern", 0)) !=
+      visual_signature(shape_param(b, "pattern", 0))) return(FALSE)
+  bits <- round(a$params$rows %||% 3) * round(a$params$cols %||% 3)
+  min_hamming <- if (bits >= 9) 2 else 1
+  popcount(bitwXor(as.integer(pa), as.integer(pb))) < min_hamming
+}
+
+# Nominally different but not reliably distinguishable by eye (symbolic rules).
+confusable <- function(a, b) {
+  if (visual_signature(a) == visual_signature(b)) return(FALSE)
+  count_confusable(a, b) || pattern_confusable(a, b)
+}

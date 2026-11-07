@@ -16,8 +16,11 @@ THEMES <- list(
     bg = "#ffffff", panel = "#f4f4f5", cell = "#ffffff", border = "#d4d4d8",
     text = "#18181b", muted = "#71717a", accent = "#6d28d9",
     success = "#047857", danger = "#b91c1c",
-    map = c("#e4e4e7" = "#27272a", "#a78bfa" = "#6d28d9", "#34d399" = "#047857",
-            "#f59e0b" = "#b45309", "#60a5fa" = "#1d4ed8")
+    # dark-on-light equivalents of the generator palette, chosen so that every
+    # pair stays distinguishable (blue is pushed towards cyan, purple towards
+    # violet)
+    map = c("#e4e4e7" = "#27272a", "#a78bfa" = "#7c3aed", "#34d399" = "#047857",
+            "#f59e0b" = "#b45309", "#60a5fa" = "#0369a1")
   )
 )
 
@@ -134,13 +137,17 @@ build_shape <- function(s, theme, lw) {
       do.call(gList, grobs)
     },
     dice = {
+      # The die scales with `size` like every other carrier (side = 85 units at
+      # size 1). The web app's Dice.tsx scales only the padding, which makes
+      # the size axis nearly invisible; that formula is deliberately not kept.
       dots <- clamp(round(p$dotCount %||% 1), 1, 9)
-      padding <- 15 * size
-      cell <- (100 - padding * 2) / 3
+      side <- 100 * 0.85 * size
+      padding <- (100 - side) / 2
+      cell <- side / 3
       dot_r <- cell * 0.18
       pos <- DICE_POSITIONS[[dots]]
       gList(
-        roundrectGrob(50, 50, width = 100 - 2 * padding, height = 100 - 2 * padding,
+        roundrectGrob(50, 50, width = side, height = side,
                       default.units = "native", r = unit(0.04, "snpc"),
                       gp = gpar(col = stroke, fill = fill, lwd = lwd_of(sw))),
         circleGrob(padding + cell * (pos[, 1] + 0.5), padding + cell * (pos[, 2] + 0.5),

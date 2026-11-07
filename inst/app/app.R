@@ -11,34 +11,51 @@ shape_choices <- stats::setNames(shapes, cogitem::shape_labels()[shapes])
 rule_choices_all <- stats::setNames(rules, cogitem::rule_labels()[rules])
 THUMBS_PER_PAGE <- 12
 MAX_OPTIONS <- 8
+BASE_FONT <- "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 
-app_theme <- bs_theme(
-  version = 5,
-  bg = "#0f0f12", fg = "#e4e4e7", primary = "#a78bfa", secondary = "#23252e",
-  success = "#34d399", danger = "#f87171",
-  base_font = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-)
+app_theme <- function(mode = c("light", "dark")) {
+  mode <- match.arg(mode)
+  if (mode == "dark") {
+    bs_theme(version = 5, bg = "#0f0f12", fg = "#e4e4e7", primary = "#a78bfa",
+             secondary = "#23252e", success = "#34d399", danger = "#f87171",
+             base_font = BASE_FONT)
+  } else {
+    bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
+             secondary = "#e4e4e7", success = "#047857", danger = "#b91c1c",
+             base_font = BASE_FONT)
+  }
+}
 
 css <- "
-.cog-card { background: #1a1b22; border: 1px solid #2e303a; border-radius: 12px; padding: 12px; }
-.cog-thumb { background: #1a1b22; border: 1px solid #2e303a; border-radius: 10px; padding: 6px; }
-.cog-thumb .cap { font-size: 0.75rem; color: #9ca3af; padding: 2px 6px; }
+.cog-card { border: 1px solid; border-radius: 12px; padding: 12px; }
+.cog-thumb { border: 1px solid; border-radius: 10px; padding: 6px; }
+.cog-thumb .cap { font-size: 0.75rem; padding: 2px 6px; }
 .cog-opt { display: inline-block; width: 136px; height: 136px; margin: 6px; border-radius: 10px;
-           background: #23252e; border: 2px solid transparent; cursor: pointer; }
-.cog-opt:hover { border-color: #a78bfa; }
-.cog-opt.correct { border-color: #34d399; }
-.cog-opt.wrong { border-color: #f87171; }
+           border: 2px solid transparent; cursor: pointer; }
 .cog-opt.disabled { cursor: default; }
 .cog-opt.disabled:hover { border-color: transparent; }
-.cog-opt.disabled.correct:hover { border-color: #34d399; }
-.cog-opt.disabled.wrong:hover { border-color: #f87171; }
-.cog-muted { color: #9ca3af; }
-.cog-light .cog-opt { background: #ffffff; }
-.cog-light .cog-card, .cog-light .cog-thumb { background: #f4f4f5; border-color: #d4d4d8; }
+.cog-muted { opacity: 0.7; }
+
+body.cog-light .cog-card, body.cog-light .cog-thumb { background: #f4f4f5; border-color: #d4d4d8; }
+body.cog-light .cog-opt { background: #ffffff; border-color: #e4e4e7; }
+body.cog-light .cog-opt:hover { border-color: #6d28d9; }
+body.cog-light .cog-opt.correct, body.cog-light .cog-opt.disabled.correct:hover { border-color: #047857; }
+body.cog-light .cog-opt.wrong, body.cog-light .cog-opt.disabled.wrong:hover { border-color: #b91c1c; }
+
+body.cog-dark .cog-card, body.cog-dark .cog-thumb { background: #1a1b22; border-color: #2e303a; }
+body.cog-dark .cog-opt { background: #23252e; }
+body.cog-dark .cog-opt:hover { border-color: #a78bfa; }
+body.cog-dark .cog-opt.correct, body.cog-dark .cog-opt.disabled.correct:hover { border-color: #34d399; }
+body.cog-dark .cog-opt.wrong, body.cog-dark .cog-opt.disabled.wrong:hover { border-color: #f87171; }
 "
 
 js <- "
 window.cogStart = Date.now(); window.cogHovers = [];
+document.addEventListener('DOMContentLoaded', function() { document.body.classList.add('cog-light'); });
+Shiny.addCustomMessageHandler('cog-mode', function(mode) {
+  document.body.classList.remove('cog-light', 'cog-dark');
+  document.body.classList.add('cog-' + mode);
+});
 Shiny.addCustomMessageHandler('cog-item-start', function(m) {
   window.cogStart = Date.now(); window.cogHovers = [];
 });
@@ -60,7 +77,7 @@ function cogSkip() {
 ui <- page_navbar(
   title = "Cogitem",
   id = "nav",
-  theme = app_theme,
+  theme = app_theme("light"),
   header = tags$head(tags$style(HTML(css)), tags$script(HTML(js))),
   nav_panel(
     "Generate",
@@ -72,6 +89,7 @@ ui <- page_navbar(
         numericInput("n", "Number of items", 20, min = 1, max = 5000, step = 1),
         textInput("seed", "Seed (blank = random)", ""),
         sliderInput("n_options", "Response options", min = 2, max = 8, value = 4, step = 1),
+        checkboxInput("perceptual", "Perceptual audit (drop ambiguous items; slower)", TRUE),
         actionButton("generate", "Generate", class = "btn-primary w-100"),
         hr(),
         uiOutput("downloads")
@@ -95,7 +113,8 @@ ui <- page_navbar(
         hr(),
         tableOutput("browse_features")
       ),
-      plotOutput("browse_plot", height = "640px")
+      plotOutput("browse_plot", height = "600px"),
+      uiOutput("browse_audit")
     )
   ),
   nav_panel(
@@ -125,19 +144,26 @@ ui <- page_navbar(
           "rotation, mirror, addition, subtraction, multiplication, AND, OR, XOR, XNOR). ",
           "Response options are guaranteed to be visually distinct, generation is seeded ",
           "and every item carries a design-feature record for LLTM-style analyses."),
+        p("The perceptual audit renders every option and matrix cell and rejects items in ",
+          "which two of them look alike, even when they are nominally different."),
         p("Items exported as JSON are interchangeable with the Cogitem web application: ",
           tags$a(href = "https://cahitgs.github.io/itemgen1/", "cahitgs.github.io/itemgen1")),
         p(class = "cog-muted", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
   ),
   nav_spacer(),
-  nav_item(selectInput("theme", NULL, c("dark", "light"), selected = "dark", width = "110px"))
+  nav_item(selectInput("theme", NULL, c("light", "dark"), selected = "light", width = "110px"))
 )
 
 server <- function(input, output, session) {
   `%||%` <- function(a, b) if (is.null(a)) b else a
   items <- reactiveVal(getOption("cogitem.preloaded"))
   page <- reactiveVal(1L)
-  theme <- reactive(input$theme %||% "dark")
+  theme <- reactive(input$theme %||% "light")
+
+  observeEvent(input$theme, {
+    session$setCurrentTheme(app_theme(input$theme))
+    session$sendCustomMessage("cog-mode", input$theme)
+  }, ignoreInit = TRUE)
 
   # Keep the rule list consistent with the selected shape.
   observeEvent(input$shape, {
@@ -150,16 +176,18 @@ server <- function(input, output, session) {
   observeEvent(input$generate, {
     seed <- suppressWarnings(as.integer(input$seed))
     if (is.na(seed)) seed <- NULL
+    gen <- function() {
+      cogitem::generate_items(input$shape, input$rule, n = input$n, seed = seed,
+                              n_options = input$n_options,
+                              perceptual = isTRUE(input$perceptual))
+    }
     withProgress(message = "Generating items...", value = 0.3, {
       res <- tryCatch(
-        cogitem::generate_items(input$shape, input$rule, n = input$n, seed = seed,
-                                n_options = input$n_options),
-        error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL },
-        warning = function(w) {
-          showNotification(conditionMessage(w), type = "warning")
-          suppressWarnings(cogitem::generate_items(input$shape, input$rule, n = input$n,
-                                                   seed = seed, n_options = input$n_options))
-        }
+        withCallingHandlers(gen(), warning = function(w) {
+          showNotification(conditionMessage(w), type = "warning", duration = 8)
+          invokeRestart("muffleWarning")
+        }),
+        error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL }
       )
     })
     if (!is.null(res)) {
@@ -190,12 +218,18 @@ server <- function(input, output, session) {
     }
     m <- attr(x, "meta")
     f <- cogitem::item_features(x)
+    third <- if (isTRUE(m$perceptual)) {
+      value_box("Ambiguous dropped", m$perceptual_skipped %||% 0, theme = "secondary")
+    } else {
+      value_box("Duplicates skipped", m$duplicates_skipped %||% 0, theme = "secondary")
+    }
     layout_columns(
       col_widths = c(3, 3, 3, 3),
       value_box("Items", length(x), theme = "primary"),
       value_box("Seed", format(m$seed %||% NA), theme = "secondary"),
-      value_box("Duplicates skipped", m$duplicates_skipped %||% 0, theme = "secondary"),
-      value_box("Mean difficulty", sprintf("%.2f", mean(f$difficulty)), theme = "secondary")
+      third,
+      value_box("Mean difficulty", if (nrow(f)) sprintf("%.2f", mean(f$difficulty)) else "-",
+                theme = "secondary")
     )
   })
 
@@ -214,9 +248,9 @@ server <- function(input, output, session) {
     idx <- seq(start + 1L, min(length(x), start + THUMBS_PER_PAGE))
     cards <- lapply(seq_along(idx), function(k) {
       it <- x[[idx[k]]]
-      div(class = if (theme() == "light") "cog-thumb cog-light" else "cog-thumb",
-          div(class = "cap", sprintf("#%d  %s / %s  d%d  answer %d", idx[k], it$shape,
-                                     it$rule, it$difficulty, it$correct)),
+      div(class = "cog-thumb",
+          div(class = "cap cog-muted", sprintf("#%d  %s / %s  d%d  answer %d", idx[k], it$shape,
+                                               it$rule, it$difficulty, it$correct)),
           plotOutput(paste0("thumb_", k), height = "250px"))
     })
     layout_column_wrap(width = 1 / 3, !!!cards)
@@ -237,6 +271,7 @@ server <- function(input, output, session) {
     tagList(
       downloadButton("dl_json", "Items JSON", class = "btn-sm w-100 mb-1"),
       downloadButton("dl_features", "Features CSV", class = "btn-sm w-100 mb-1"),
+      downloadButton("dl_audit", "Audit CSV", class = "btn-sm w-100 mb-1"),
       downloadButton("dl_booklet", "PDF booklet", class = "btn-sm w-100 mb-1")
     )
   })
@@ -252,6 +287,14 @@ server <- function(input, output, session) {
   output$dl_features <- downloadHandler(
     filename = function() paste0(stem(), "-features.csv"),
     content = function(file) utils::write.csv(cogitem::item_features(items()), file, row.names = FALSE)
+  )
+  output$dl_audit <- downloadHandler(
+    filename = function() paste0(stem(), "-audit.csv"),
+    content = function(file) {
+      withProgress(message = "Auditing items...", {
+        utils::write.csv(cogitem::audit_items(items()), file, row.names = FALSE)
+      })
+    }
   )
   output$dl_booklet <- downloadHandler(
     filename = function() paste0(stem(), "-booklet.pdf"),
@@ -282,6 +325,18 @@ server <- function(input, output, session) {
     keep <- vapply(f, function(v) !is.na(v[1]) && !identical(v[1], ""), logical(1))
     data.frame(Feature = names(f)[keep], Value = vapply(f[keep], function(v) as.character(v[1]), ""))
   }, striped = TRUE, spacing = "xs")
+  output$browse_audit <- renderUI({
+    a <- tryCatch(cogitem::audit_item(browse_item()), error = function(e) NULL)
+    if (is.null(a)) return(NULL)
+    status <- if (a$flagged) span(class = "text-danger", "flagged: two renderings look alike")
+              else span(class = "text-success", "passed")
+    div(class = "cog-card mt-2",
+        strong("Perceptual audit: "), status, br(),
+        span(class = "cog-muted",
+             sprintf("smallest option distance %.2f (options %s)", a$min_option_distance, a$option_pair),
+             if (!is.na(a$min_cell_distance))
+               sprintf(" | smallest cell distance %.2f (%s)", a$min_cell_distance, a$cell_pair)))
+  })
 
   # Administer -------------------------------------------------------------------
   admin <- reactiveValues(order = NULL, pos = 0L, state = "idle", picked = NULL, log = list())
@@ -411,9 +466,8 @@ server <- function(input, output, session) {
           if (enabled) tags$button(class = "btn btn-sm btn-outline-secondary", onclick = "cogSkip()", "Skip")),
       layout_columns(
         col_widths = c(6, 6),
-        div(class = if (theme() == "light") "cog-card cog-light" else "cog-card",
-            plotOutput("admin_matrix", height = "440px")),
-        div(class = if (theme() == "light") "cog-card cog-light" else "cog-card",
+        div(class = "cog-card", plotOutput("admin_matrix", height = "440px")),
+        div(class = "cog-card",
             p(class = "cog-muted", "Which option completes the matrix?"),
             div(!!!opts),
             if (admin$state == "feedback")

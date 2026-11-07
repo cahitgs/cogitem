@@ -78,6 +78,21 @@ and then from an ordered pool of perturbations (count, colour, size, fill,
 rotation, stroke width). Items that fail `is_item_valid()` are discarded and
 regenerated.
 
+### Perceptual audit
+
+The symbolic check cannot see that two configurations which differ only in
+a tiny size step render almost identically. `audit_items()` therefore
+rasterises every option and every nominally different cell pair, blurs the
+CIELAB images slightly and computes a distance in `[0, 1]` (0 = identical,
+about 1 = no overlapping ink); items whose smallest distance falls below
+0.15 are flagged. `generate_items(perceptual = TRUE)` applies the audit
+during generation and discards flagged items.
+
+```r
+audit_items(items)
+clean <- generate_items("sector-pie", "xor", n = 50, seed = 1, perceptual = TRUE)
+```
+
 ### Design features and difficulty
 
 `item_features()` returns, for every item, the rule and its family, the

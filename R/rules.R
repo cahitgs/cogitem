@@ -188,9 +188,11 @@ pick_primary_progression <- function(shape) {
 pick_secondary_progression <- function(shape) {
   which_axis <- rpick(SECONDARY_AXES[[shape]])
   if (which_axis == "size") {
-    list(kind = "attr", name = "size", values = c(0.5, 0.72, 0.92))
+    # smallest step starts at 0.6: at 0.5 the finest carriers (3 vs 4 rings)
+    # no longer separate perceptibly
+    list(kind = "attr", name = "size", values = c(0.6, 0.76, 0.92))
   } else {
-    list(kind = "attr", name = "strokeWidth", values = c(1.5, 3.5, 6))
+    list(kind = "attr", name = "strokeWidth", values = c(1, 3, 6))
   }
 }
 
@@ -208,7 +210,7 @@ gen_progression <- function(shape, n_options) {
   primary <- pick_primary_progression(shape)
   secondary <- pick_secondary_progression(shape)
   if (primary$kind == "attr" && secondary$kind == "attr" && primary$name == secondary$name) {
-    secondary <- list(kind = "attr", name = "strokeWidth", values = c(1.5, 3, 5))
+    secondary <- list(kind = "attr", name = "strokeWidth", values = c(1, 3, 6))
   }
   cells <- lapply(1:3, function(r) {
     lapply(1:3, function(c) {

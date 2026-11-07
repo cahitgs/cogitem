@@ -10,6 +10,14 @@
   `is_item_valid()`), seeded generation (`generate_items()`,
   `generate_mixed()`), calibrated a priori difficulty
   (`calibrate_difficulty()`).
+* Renderer-based perceptual audit (`perceptual_distance()`, `audit_item()`,
+  `audit_items()`, `generate_items(perceptual = TRUE)`) that flags items
+  whose options or matrix cells look alike although they are nominally
+  different. Symbolic checks additionally reject imperceptible count or
+  single-cell checkerboard differences between cells of the same row or
+  column.
+* The die scales with `size` like every other carrier (the web app's
+  `Dice.tsx` scales only the padding, which made the size axis invisible).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
 * grid-based rendering in light and dark themes (`plot()`, `shape_grob()`,

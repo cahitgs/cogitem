@@ -4,7 +4,15 @@
 \alias{generate_mixed}
 \title{Generate a mixed item set from several shape-rule specifications}
 \usage{
-generate_mixed(specs, n_each = 5, seed = NULL, n_options = 4, shuffle = TRUE)
+generate_mixed(
+  specs,
+  n_each = 5,
+  seed = NULL,
+  n_options = 4,
+  shuffle = TRUE,
+  perceptual = FALSE,
+  perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD
+)
 }
 \arguments{
 \item{specs}{A data frame with columns \code{shape} and \code{rule}, for example a
@@ -17,6 +25,15 @@ subset of \code{\link[=supported_combinations]{supported_combinations()}}.}
 \item{n_options}{Number of response options.}
 
 \item{shuffle}{Shuffle the combined item order?}
+
+\item{perceptual}{Also run the renderer-based \code{\link[=audit_item]{audit_item()}} on every
+candidate and discard items whose options or cells are perceptually
+confusable. Slower (each item is rasterised) and needs \strong{ragg} or a
+cairo-capable R; the result is reproducible for a given seed on the same
+graphics stack.}
+
+\item{perceptual_threshold}{Distance below which two renderings count as
+confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 }
 \value{
 A \code{cog_item_set}.

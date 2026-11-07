@@ -93,19 +93,27 @@ new_item_set <- function(items, meta = list()) {
 #' @param n_options Number of response options (2-8, default 4). One option
 #'   is correct; the rest are distractors.
 #' @param max_attempts Maximum number of generation attempts before giving up.
+#' @param perceptual Also run the renderer-based [audit_item()] on every
+#'   candidate and discard items whose options or cells are perceptually
+#'   confusable. Slower (each item is rasterised) and needs **ragg** or a
+#'   cairo-capable R; the result is reproducible for a given seed on the same
+#'   graphics stack.
+#' @param perceptual_threshold Distance below which two renderings count as
+#'   confusable, see [perceptual_distance()].
 #' @return An object of class `cog_item_set`: a list of `cog_item` objects
 #'   with a `meta` attribute (shape, rule, seed, counts of skipped
-#'   duplicates and invalid attempts).
+#'   duplicates, invalid and perceptually ambiguous attempts).
 #' @examples
 #' items <- generate_items("annulus", "dist-of-3", n = 5, seed = 42)
 #' items
 #' items[[1]]
 #' plot(items[[1]])
 #' @seealso [generate_item()], [generate_mixed()], [item_features()],
-#'   [write_items_json()], [run_app()]
+#'   [audit_items()], [write_items_json()], [run_app()]
 #' @export
 generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
-                           max_attempts = NULL) {
+                           max_attempts = NULL, perceptual = FALSE,
+                           perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD) {
   shape <- match.arg(shape, SHAPES)
   rule <- match.arg(rule, RULES)
   if (!is_supported(shape, rule)) {
@@ -125,6 +133,7 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
     attempts <- 0L
     duplicates <- 0L
     invalid <- 0L
+    ambiguous <- 0L
     consecutive_dup <- 0L
     last_error <- NULL
     while (n_items < n && attempts < max_attempts) {
@@ -144,18 +153,24 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
         if (consecutive_dup > 500L) break
         next
       }
+      if (perceptual && audit_item(p, threshold = perceptual_threshold)$flagged) {
+        ambiguous <- ambiguous + 1L
+        next
+      }
       assign(sig, TRUE, envir = seen)
       n_items <- n_items + 1L
       items[[n_items]] <- p
       consecutive_dup <- 0L
     }
     list(items = items[seq_len(n_items)], attempts = attempts,
-         duplicates = duplicates, invalid = invalid, last_error = last_error)
+         duplicates = duplicates, invalid = invalid, ambiguous = ambiguous,
+         last_error = last_error)
   })
 
   if (length(res$items) < n) {
-    msg <- sprintf("Only %d of %d requested %s/%s items could be generated (%d attempts, %d duplicates, %d invalid).",
-                   length(res$items), n, shape, rule, res$attempts, res$duplicates, res$invalid)
+    msg <- sprintf("Only %d of %d requested %s/%s items could be generated (%d attempts, %d duplicates, %d invalid, %d perceptually ambiguous).",
+                   length(res$items), n, shape, rule, res$attempts, res$duplicates,
+                   res$invalid, res$ambiguous)
     if (length(res$items) == 0 && !is.null(res$last_error)) {
       msg <- paste0(msg, " Last generator error: ", res$last_error)
     }
@@ -165,7 +180,9 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
   new_item_set(res$items, meta = list(
     shape = shape, rule = rule, n_requested = n, seed = seed,
     n_options = n_options, duplicates_skipped = res$duplicates,
-    invalid_skipped = res$invalid, attempts = res$attempts,
+    invalid_skipped = res$invalid, perceptual = perceptual,
+    perceptual_threshold = if (perceptual) perceptual_threshold else NA_real_,
+    perceptual_skipped = res$ambiguous, attempts = res$attempts,
     reached_ceiling = length(res$items) < n
   ))
 }
@@ -198,13 +215,15 @@ generate_item <- function(shape, rule, seed = NULL, n_options = 4) {
 #' @param seed Integer seed for the whole set.
 #' @param n_options Number of response options.
 #' @param shuffle Shuffle the combined item order?
+#' @inheritParams generate_items
 #' @return A `cog_item_set`.
 #' @examples
 #' specs <- subset(supported_combinations(), shape == "dice")
 #' test <- generate_mixed(specs, n_each = 2, seed = 1)
 #' table(item_features(test)$rule)
 #' @export
-generate_mixed <- function(specs, n_each = 5, seed = NULL, n_options = 4, shuffle = TRUE) {
+generate_mixed <- function(specs, n_each = 5, seed = NULL, n_options = 4, shuffle = TRUE,
+                           perceptual = FALSE, perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD) {
   stopifnot(is.data.frame(specs), all(c("shape", "rule") %in% names(specs)))
   seed <- as.integer(seed %||% random_seed())
   n_each <- rep_len(n_each, nrow(specs))
@@ -214,15 +233,22 @@ generate_mixed <- function(specs, n_each = 5, seed = NULL, n_options = 4, shuffl
     for (i in seq_len(nrow(specs))) {
       sub_seed <- sample.int(.Machine$integer.max, 1L)
       set <- generate_items(specs$shape[i], specs$rule[i], n = n_each[i],
-                            seed = sub_seed, n_options = n_options)
+                            seed = sub_seed, n_options = n_options,
+                            perceptual = perceptual,
+                            perceptual_threshold = perceptual_threshold)
       items <- c(items, unclass(set))
       sources[[i]] <- list(shape = specs$shape[i], rule = specs$rule[i],
-                           n = length(set), seed = sub_seed)
+                           n = length(set), seed = sub_seed,
+                           perceptual_skipped = attr(set, "meta")$perceptual_skipped)
     }
     if (shuffle && length(items) > 1) items <- items[sample.int(length(items))]
   })
   new_item_set(items, meta = list(shape = "mixed", rule = "mixed", seed = seed,
-                                  n_options = n_options, sources = sources))
+                                  n_options = n_options, perceptual = perceptual,
+                                  perceptual_skipped = sum(vapply(sources, function(s) {
+                                    s$perceptual_skipped %||% 0L
+                                  }, numeric(1))),
+                                  sources = sources))
 }
 
 #' Sample items from a set
@@ -265,8 +291,10 @@ print.cog_item_set <- function(x, ...) {
                               as.integer(names(table(f$difficulty)))), collapse = ", ")))
   }
   if (!is.null(m$attempts)) {
-    cat(sprintf("attempts %d | duplicates skipped %d | invalid skipped %d%s\n",
+    cat(sprintf("attempts %d | duplicates skipped %d | invalid skipped %d%s%s\n",
                 m$attempts, m$duplicates_skipped, m$invalid_skipped,
+                if (isTRUE(m$perceptual)) sprintf(" | perceptually ambiguous skipped %d",
+                                                  m$perceptual_skipped) else "",
                 if (isTRUE(m$reached_ceiling)) " | ceiling reached" else ""))
   }
   invisible(x)
