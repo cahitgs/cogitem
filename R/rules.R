@@ -191,6 +191,9 @@ pick_secondary_progression <- function(shape) {
     # smallest step starts at 0.6: at 0.5 the finest carriers (3 vs 4 rings)
     # no longer separate perceptibly
     list(kind = "attr", name = "size", values = c(0.6, 0.76, 0.92))
+  } else if (shape == "annulus") {
+    # hairline rings (1 unit) make an added ring nearly invisible
+    list(kind = "attr", name = "strokeWidth", values = c(2, 4, 7))
   } else {
     list(kind = "attr", name = "strokeWidth", values = c(1, 3, 6))
   }

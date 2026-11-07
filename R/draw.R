@@ -126,11 +126,11 @@ build_shape <- function(s, theme, lw) {
       rc <- clamp(round(p$ringCount %||% 1), 1, 4)
       gap <- p$gap %||% 0.15
       # Always draw exactly `ringCount` rings. Legibility floor: consecutive
-      # rings stay at least strokeWidth + 2.5 units apart when there is room
+      # rings stay at least strokeWidth + 3.5 units apart when there is room
       # (the web renderer lets thick strokes merge); when there is not, the
       # spacing shrinks so that the innermost ring still has a radius of at
       # least strokeWidth / 2 + 1.
-      spacing <- max(gap * base_r, sw + 2.5)
+      spacing <- max(gap * base_r, sw + 3.5)
       if (rc > 1) spacing <- min(spacing, (base_r - (sw / 2 + 1)) / (rc - 1))
       grobs <- list()
       for (i in 0:(rc - 1)) {
