@@ -11,7 +11,7 @@ shape_choices <- stats::setNames(shapes, cogitem::shape_labels()[shapes])
 rule_choices_all <- stats::setNames(rules, cogitem::rule_labels()[rules])
 outer_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("outer")]
 inner_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("inner")]
-THUMBS_PER_PAGE <- 12
+ITEMS_PER_PAGE <- 1L
 MAX_OPTIONS <- 8
 PKG_ROOT <- local({
   # under pkgload the shimmed system.file() may return inst/; use the source root
@@ -83,12 +83,12 @@ app_theme <- bs_theme(
 section <- function(title, class = NULL) h2(class = paste("cog-section", class), title)
 
 ui <- page_navbar(
-  title = tags$span(class = "cog-brand", tags$img(src = "logo.png", alt = ""), "Cogitem"),
+  title = tags$span(class = "cog-brand", tags$img(src = "cogitem-logo.png", alt = ""), "Cogitem"),
   window_title = "Cogitem",
   id = "nav",
   theme = app_theme,
   header = tags$head(
-    tags$link(rel = "icon", type = "image/png", href = "logo.png"),
+    tags$link(rel = "icon", type = "image/png", href = "cogitem-logo.png"),
     tags$link(rel = "stylesheet", href = "fonts/fonts.css"),
     tags$link(rel = "stylesheet", href = "cogitem.css"),
     tags$script(src = "cogitem.js")
@@ -121,14 +121,15 @@ ui <- page_navbar(
         uiOutput("downloads")
       ),
       uiOutput("summary"),
-      uiOutput("gallery"),
       conditionalPanel(
-        "output.n_pages > 1",
-        div(class = "cog-pager",
-            actionButton("prev_page", "Previous", class = "btn-sm btn-outline-secondary"),
-            textOutput("page_label", inline = TRUE),
-            actionButton("next_page", "Next", class = "btn-sm btn-outline-secondary"))
-      )
+        "output.n_pages > 0",
+        div(class = "cog-viewer-head",
+            span(class = "n", textOutput("page_label", inline = TRUE)),
+            div(class = "cog-viewer-nav",
+                actionButton("prev_page", "Previous", class = "btn-sm btn-outline-secondary"),
+                actionButton("next_page", "Next", class = "btn-sm btn-outline-secondary")))
+      ),
+      uiOutput("gallery")
     )
   ),
   nav_panel(
@@ -168,7 +169,7 @@ ui <- page_navbar(
   nav_panel(
     "About",
     div(class = "cog-paper cog-about",
-        tags$img(src = "logo.png", alt = "cogitem logo"),
+        tags$img(src = "cogitem-logo.png", alt = "cogitem logo"),
         h3("Cogitem for R"),
         p("Rule-based automatic generation of Raven-like 3x3 matrix items. ",
           "Every item combines one figural carrier (15 shape families) with one ",
@@ -345,7 +346,7 @@ server <- function(input, output, session) {
     x <- items()
     if (is.null(x)) {
       return(div(class = "cog-empty",
-                 tags$img(src = "logo.png", alt = ""),
+                 tags$img(src = "cogitem-logo.png", alt = ""),
                  h3("No items yet"),
                  p("Choose a shape and a rule on the left and press Generate items. ",
                    "A saved item set (.rds) can be loaded in the Administer tab.")))
@@ -365,39 +366,31 @@ server <- function(input, output, session) {
 
   n_pages <- reactive({
     x <- items()
-    if (is.null(x) || length(x) == 0) 1L else ceiling(length(x) / THUMBS_PER_PAGE)
+    if (is.null(x) || length(x) == 0) 0L else ceiling(length(x) / ITEMS_PER_PAGE)
   })
   observeEvent(input$prev_page, page(max(1L, page() - 1L)))
   observeEvent(input$next_page, page(min(n_pages(), page() + 1L)))
-  output$page_label <- renderText(sprintf("Page %d of %d", page(), n_pages()))
+  output$page_label <- renderText(sprintf("Item %d of %d", page(), n_pages()))
   output$n_pages <- renderText(n_pages())
   outputOptions(output, "n_pages", suspendWhenHidden = FALSE)
 
   output$gallery <- renderUI({
     x <- items()
     if (is.null(x) || length(x) == 0) return(NULL)
-    start <- (page() - 1L) * THUMBS_PER_PAGE
-    idx <- seq(start + 1L, min(length(x), start + THUMBS_PER_PAGE))
-    cards <- lapply(seq_along(idx), function(k) {
-      it <- x[[idx[k]]]
-      div(class = "cog-item-card",
-          plotOutput(paste0("thumb_", k), height = "230px"),
-          div(class = "cap",
-              tags$b(sprintf("Item %d", idx[k])),
-              span(sprintf("%s, %s", nice_shape(it$shape), nice_rule(it$rule))),
-              span(class = "key", sprintf("key %d", it$correct))))
-    })
-    div(class = "cog-gallery", !!!cards)
+    i <- min(page(), length(x))
+    it <- x[[i]]
+    div(class = "cog-viewer",
+        plotOutput("viewer_plot", height = "640px"),
+        div(class = "cap",
+            tags$b(sprintf("Item %d", i)),
+            span(sprintf("%s, %s", nice_shape(it$shape), nice_rule(it$rule))),
+            span(class = "key", sprintf("key %d, %d options", it$correct, it$n_options))))
   })
-
-  lapply(seq_len(THUMBS_PER_PAGE), function(k) {
-    output[[paste0("thumb_", k)]] <- renderPlot({
-      x <- items()
-      i <- (page() - 1L) * THUMBS_PER_PAGE + k
-      req(!is.null(x), i <= length(x))
-      plot(x[[i]], show_answer = TRUE, bg = NA, labels = FALSE)
-    }, bg = "transparent")
-  })
+  output$viewer_plot <- renderPlot({
+    x <- items()
+    req(!is.null(x), length(x) > 0)
+    plot(x[[min(page(), length(x))]], show_answer = TRUE, bg = NA)
+  }, bg = "transparent")
 
   # Downloads --------------------------------------------------------------------
   output$downloads <- renderUI({

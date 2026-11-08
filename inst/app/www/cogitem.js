@@ -55,6 +55,14 @@
       }
       return;
     }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      var btn = document.getElementById(e.key === 'ArrowLeft' ? 'prev_page' : 'next_page');
+      if (btn && btn.offsetParent !== null) {
+        btn.click();
+        e.preventDefault();
+      }
+      return;
+    }
     if (e.key === 'Enter' || e.key === ' ') {
       var next = document.getElementById('admin_next');
       if (next) {

@@ -128,7 +128,7 @@ layer_rules("dice")
 ## Shiny application
 
 `run_app()` opens an application with four panels: **Generate** (shape,
-rule, optional inner layer, n, seed, option count; gallery preview; item-set `.rds`, feature-CSV,
+rule, optional inner layer, n, seed, option count; items shown one at a time with Previous/Next or the arrow keys; item-set `.rds`, feature-CSV,
 audit-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, answered by click or number
 key, logging the chosen option, response time and the hover trace of every

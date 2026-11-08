@@ -36,7 +36,8 @@
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
 * Redesigned Shiny interface: grouped sidebar forms, an empty state, a
-  statistics strip and item gallery after generation, design features and
+  statistics strip and a one-item-at-a-time viewer after generation (arrow
+  keys page through the set), design features and
   audit result next to the browsed item, a test-mode administration with
   numbered options, keyboard shortcuts (1-8, Enter) and a results summary.
   Bundled typefaces (Fraunces, Manrope; SIL OFL), package logo in the header
