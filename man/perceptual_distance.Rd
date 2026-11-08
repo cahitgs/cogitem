@@ -38,6 +38,12 @@ confusable} when the distance falls below 0.15 (the default \code{threshold} of
 spikes, 7 vs 8 sides) are handled by the symbolic rules of
 \code{\link[=is_item_valid]{is_item_valid()}} rather than by this metric.
 
+Options and cells of two-layer items (see \code{\link[=generate_layered]{generate_layered()}}) are
+compared layer by layer, each layer rendered on its own at full tile
+size, and the distance is the larger of the two layer distances: a
+blurred tile of the whole cell cannot resolve the inner carrier, which
+fills only 36 \% of the cell, whereas a person looking at it can.
+
 Requires the \strong{ragg} package or, as a fallback, the \strong{png} package
 (the engine can be forced with \code{options(cogitem.raster = "png")}).
 }

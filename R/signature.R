@@ -14,22 +14,6 @@ attribute_visible <- function(s, what) {
   )
 }
 
-#' Visual signature of a shape configuration
-#'
-#' Two configurations that produce the same picture for a human observer get
-#' the same signature. Rotation is normalised by the shape's rotational
-#' symmetry (an annulus looks the same at any angle, a square every 90
-#' degrees, an arrow never), so visually identical response options can be
-#' detected and eliminated during generation. This is the mechanism behind
-#' the package's option-uniqueness guarantee.
-#'
-#' @param s A `cog_shape`.
-#' @return A character string.
-#' @examples
-#' a <- cog_shape("polygon", list(sides = 4), rotation = 0)
-#' b <- cog_shape("polygon", list(sides = 4), rotation = 90)
-#' identical(visual_signature(a), visual_signature(b)) # TRUE: a square
-#' @export
 # Rotate a rows x cols bit pattern (bit r * cols + c = cell r, c filled, row 0
 # at the top) clockwise by `steps` quarter turns.
 rotate_pattern_cw <- function(rows, cols, pattern, steps) {
@@ -119,6 +103,22 @@ canonical_shape <- function(s) {
   s
 }
 
+#' Visual signature of a shape configuration
+#'
+#' Two configurations that produce the same picture for a human observer get
+#' the same signature. Rotation is normalised by the shape's rotational
+#' symmetry (an annulus looks the same at any angle, a square every 90
+#' degrees, an arrow never), so visually identical response options can be
+#' detected and eliminated during generation. This is the mechanism behind
+#' the package's option-uniqueness guarantee.
+#'
+#' @param s A `cog_shape`.
+#' @return A character string.
+#' @examples
+#' a <- cog_shape("polygon", list(sides = 4), rotation = 0)
+#' b <- cog_shape("polygon", list(sides = 4), rotation = 90)
+#' identical(visual_signature(a), visual_signature(b)) # TRUE: a square
+#' @export
 visual_signature <- function(s) {
   if (is_stack(s)) {
     return(sprintf("stack[%s|%s]", visual_signature(s$layers[[1]]),
@@ -373,10 +373,11 @@ rotation_confusable <- function(a, b) {
 confusable <- function(a, b) {
   if (visual_signature(a) == visual_signature(b)) return(FALSE)
   if (is_stack(a) && is_stack(b)) {
-    # two stacks are confusable when every layer is identical or confusable
+    # two stacks are confusable when every layer is identical or confusable,
+    # the inner layer judged at the scale it is drawn
     return(all(vapply(1:2, function(k) {
-      x <- a$layers[[k]]
-      y <- b$layers[[k]]
+      x <- layer_at_scale(a, k)
+      y <- layer_at_scale(b, k)
       visual_signature(x) == visual_signature(y) || confusable(x, y)
     }, logical(1))))
   }

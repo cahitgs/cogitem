@@ -71,3 +71,65 @@ test_that("layer specifications are checked", {
                           list(shape = "bars", rule = "identity"), n = 1, seed = 5)
   expect_equal(length(set), 1)
 })
+test_that("two-layer items work with any option count up to eight", {
+  for (cb in list(list(c("polygon", "progression"), c("dice", "dist-of-3"), 11L),
+                  list(c("spike-ring", "identity"), c("arrow", "rotation"), 12L),
+                  list(c("polygon", "dist-of-3"), c("checkerboard", "xor"), 13L))) {
+    for (no in c(2L, 6L, 8L)) {
+      set <- generate_layered(cb[[1]], cb[[2]], n = 3, seed = cb[[3]] + no, n_options = no)
+      expect_equal(length(set), 3, info = sprintf("%s+%s with %d options", cb[[1]][1], cb[[2]][1], no))
+      for (it in set) {
+        expect_equal(it$n_options, no)
+        expect_true(is_item_valid(it, n_options = no))
+        expect_equal(length(it$meta$distractor_tiers), no)
+        # the layers themselves never need more than four options
+        expect_lte(it$meta$outer$n_options %||% 4L, 4L)
+      }
+    }
+  }
+  # with eight options all three kinds of distractors occur
+  set <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"), n = 2, seed = 21, n_options = 8)
+  tiers <- unlist(lapply(set, function(it) it$meta$distractor_tiers))
+  expect_true(any(startsWith(tiers, "inner:")))
+  expect_true(any(startsWith(tiers, "outer:")))
+  expect_true(any(startsWith(tiers, "both:")))
+})
+
+test_that("stacked options are compared at the scale the inner layer is drawn", {
+  outer <- cog_shape("polygon", list(sides = 5), size = 0.95)
+  inner <- function(n = 4, size = 0.75, sw = 3) cog_shape("dice", list(dotCount = n), size = size, strokeWidth = sw)
+  st <- function(o, i) cogitem:::stack_shape(o, i)
+  key <- st(outer, inner())
+  # an inner stroke-width step of 3 units is 1.6 units on the disc: confusable
+  expect_true(cogitem:::confusable(key, st(outer, inner(sw = 6))))
+  # an inner size step of 0.1 is 0.036 on the disc: confusable
+  expect_true(cogitem:::confusable(key, st(outer, inner(size = 0.85))))
+  # a dot count step and an outer change are visible
+  expect_false(cogitem:::confusable(key, st(outer, inner(n = 5))))
+  expect_false(cogitem:::confusable(key, st(cog_shape("polygon", list(sides = 6), size = 0.95), inner())))
+  # many-sided inner polygons need a larger count step than at full size
+  # (two sides suffice at full size, three on the disc)
+  poly <- function(n) cog_shape("polygon", list(sides = n), size = 0.75)
+  expect_true(cogitem:::confusable(st(outer, poly(6)), st(outer, poly(8))))
+  expect_false(cogitem:::confusable(poly(6), poly(8)))
+  # and an item whose inner row shows 5, 7 and 9 sides is invalid
+  cells <- lapply(1:3, function(r) lapply(1:3, function(c) st(outer, poly(3 + 2 * c))))
+  bad <- cog_item(cells, list(st(outer, poly(9)), st(outer, poly(5)), st(outer, poly(3))),
+                  correct = 1, rule = "progression", shape = "polygon+polygon")
+  expect_false(is_item_valid(bad))
+})
+
+test_that("the perceptual audit compares two-layer stacks layer by layer", {
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  outer <- cog_shape("polygon", list(sides = 5), size = 0.95)
+  dice <- function(n) cog_shape("dice", list(dotCount = n), size = 0.75, strokeWidth = 3)
+  st <- cogitem:::stack_shape
+  # five vs six dots on the inner disc: resolvable layer by layer
+  expect_gt(perceptual_distance(st(outer, dice(5)), st(outer, dice(6))), 0.15)
+  expect_equal(perceptual_distance(st(outer, dice(5)), st(outer, dice(5))), 0)
+  # the outer layer alone counts as well
+  expect_gt(perceptual_distance(st(outer, dice(5)), st(cog_shape("polygon", list(sides = 6), size = 0.95), dice(5))), 0.15)
+  # the layer-wise distance is never below the inner layer alone
+  expect_gte(perceptual_distance(st(outer, dice(2)), st(outer, dice(4))), perceptual_distance(dice(2), dice(4)) - 1e-9)
+})
+

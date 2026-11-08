@@ -42,17 +42,30 @@ is_item_valid <- function(item, n_options = NULL) {
   # Cells that differ must differ perceptibly in count within every row,
   # otherwise the rule itself is invisible (e.g. 15 vs 16 spikes in a row).
   # Columns carry the rule too, except for the row-wise arithmetic and
-  # logic rules, whose column values are unrelated.
-  cell_pair_ok <- function(a, b) {
-    is_blank_cell(a) || is_blank_cell(b) || !count_confusable(a, b)
+  # logic rules, whose column values are unrelated. Two-layer items are
+  # checked layer by layer, each layer with its own rule and the inner
+  # layer at the scale it is drawn.
+  layered <- is_stack(target)
+  layer_rule <- function(k) {
+    m <- item$meta[[c("outer", "inner")[k]]]
+    m$rule %||% strsplit(item$rule, "+", fixed = TRUE)[[1]][k] %||% item$rule
   }
-  for (r in 1:3) for (i in 1:2) for (j in (i + 1):3) {
-    if (!cell_pair_ok(item$cells[[r]][[i]], item$cells[[r]][[j]])) return(FALSE)
-  }
-  if (!(item$rule %in% ROW_ONLY_RULES)) {
-    for (c in 1:3) for (i in 1:2) for (j in (i + 1):3) {
-      if (!cell_pair_ok(item$cells[[i]][[c]], item$cells[[j]][[c]])) return(FALSE)
+  cells_ok <- function(get, rule) {
+    pair_ok <- function(a, b) is_blank_cell(a) || is_blank_cell(b) || !count_confusable(get(a), get(b))
+    for (r in 1:3) for (i in 1:2) for (j in (i + 1):3) {
+      if (!pair_ok(item$cells[[r]][[i]], item$cells[[r]][[j]])) return(FALSE)
     }
+    if (!(rule %in% ROW_ONLY_RULES)) {
+      for (c in 1:3) for (i in 1:2) for (j in (i + 1):3) {
+        if (!pair_ok(item$cells[[i]][[c]], item$cells[[j]][[c]])) return(FALSE)
+      }
+    }
+    TRUE
+  }
+  if (layered) {
+    for (k in 1:2) if (!cells_ok(function(s) layer_at_scale(s, k), layer_rule(k))) return(FALSE)
+  } else if (!cells_ok(identity, item$rule)) {
+    return(FALSE)
   }
 
   rule_satisfied(item)

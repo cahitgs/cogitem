@@ -14,6 +14,8 @@ INNER_SCALE <- 0.36          # inner layer viewport as a fraction of the cell bo
 INNER_LWD_BOOST <- 1.5       # inner strokes are drawn a little heavier than pure scaling
 KNOCKOUT_RADIUS <- 20        # white disc under the inner layer (cell units, 0-100)
 MAX_SPIKE_DEPTH_OUTER <- 0.5 # keeps the ring of an outer spike-ring outside the disc
+LAYER_OPTIONS <- 4L          # options each layer is generated with (at most)
+LAYER_TRIES <- 8L            # draws of a layer before an attempt is given up
 
 #' Carriers and rules available for two-layer items
 #'
@@ -57,6 +59,32 @@ stack_shape <- function(outer, inner) {
 
 is_stack <- function(s) identical(s$kind, "stack")
 
+# Layer k of a stack as it is drawn: the inner layer fills INNER_SCALE of the
+# cell with strokes scaled by INNER_SCALE * INNER_LWD_BOOST, so the symbolic
+# perceptibility rules (count, size, stroke width, rotation) judge it at its
+# real size.
+layer_at_scale <- function(s, k) {
+  x <- s$layers[[k]]
+  if (k == 2L) {
+    x$size <- x$size * INNER_SCALE
+    x$strokeWidth <- x$strokeWidth * INNER_SCALE * INNER_LWD_BOOST
+  }
+  x
+}
+
+# Visibility rank of a distractor manipulation (1 = most visible): rule-derived
+# candidates and count steps first, the subtle stroke-width and fallback
+# tweaks last. Used to order the wrong options of a layer before combining.
+PERTURBATION_RANK <- c(count1 = 1, marker = 1, color = 2, size = 3, count2 = 3,
+                       fill = 4, rotation = 4, strokeWidth = 5, fallback = 6)
+tier_rank <- function(tiers) {
+  vapply(tiers, function(t) {
+    if (tier_is_rule_derived(t)) return(1)
+    r <- PERTURBATION_RANK[t]
+    if (is.na(r)) 2.5 else unname(r)
+  }, numeric(1), USE.NAMES = FALSE)
+}
+
 all_item_shapes <- function(item) c(do.call(c, item$cells), item$options)
 
 # Grid children of a stacked cell: outer layer, white disc, inner layer.
@@ -91,46 +119,80 @@ pin_outer_size <- function(item) {
 }
 
 # Superimpose two single-layer items. The keyed option stacks both correct
-# answers; distractors are, in this order, wrong in the inner layer, wrong in
-# the outer layer and wrong in both (using the next wrong option of each
-# layer so that no distractor repeats another), repeated until n_options - 1
-# distractors exist.
+# answers. Distractor candidates are, in matRiks order, wrong in the inner
+# layer, wrong in the outer layer and wrong in both (the layers' wrong options
+# ordered from the most to the least visible manipulation, the pairs for
+# "both" starting with the second wrong option of each layer); the queues are
+# visited in turn and a candidate is kept only when it is distinct from, and
+# not confusable with, the key and every candidate kept before it, the inner
+# layer being judged at the scale it is drawn. Fewer than n_options - 1
+# survivors leave a short item, which the generation loop rejects.
 compose_layered <- function(outer, inner, n_options) {
   cells <- lapply(1:3, function(r) {
     lapply(1:3, function(c) stack_shape(outer$cells[[r]][[c]], inner$cells[[r]][[c]]))
   })
+  wrong <- function(item) {
+    shapes <- item$options[-item$correct]
+    tiers <- item$meta$distractor_tiers[-item$correct]
+    ord <- order(tier_rank(tiers))
+    list(shapes = shapes[ord], tiers = tiers[ord])
+  }
   oc <- outer$options[[outer$correct]]
   ic <- inner$options[[inner$correct]]
-  o_wrong <- outer$options[-outer$correct]
-  i_wrong <- inner$options[-inner$correct]
-  o_tiers <- outer$meta$distractor_tiers[-outer$correct]
-  i_tiers <- inner$meta$distractor_tiers[-inner$correct]
-  k_o <- length(o_wrong)
-  k_i <- length(i_wrong)
+  ow <- wrong(outer)
+  iw <- wrong(inner)
+  k_o <- length(ow$shapes)
+  k_i <- length(iw$shapes)
 
+  key <- stack_shape(oc, ic)
   cands <- list()
   tiers <- character(0)
-  push <- function(shape, tier) {
+  sigs <- visual_signature(key)
+  need <- n_options - 1L
+  accept <- function(shape, tier) {
+    sig <- visual_signature(shape)
+    if (sig %in% sigs || confusable(key, shape)) return(FALSE)
+    for (c in cands) if (confusable(c, shape)) return(FALSE)
+    sigs <<- c(sigs, sig)
     cands[[length(cands) + 1]] <<- shape
     tiers <<- c(tiers, tier)
-  }
-  need <- function() length(cands) < n_options - 1
-  round <- 1L
-  while (need() && round <= max(k_o, k_i)) {
-    i <- min(round, k_i)
-    o <- min(round, k_o)
-    push(stack_shape(oc, i_wrong[[i]]), paste0("inner:", i_tiers[i]))
-    if (need()) push(stack_shape(o_wrong[[o]], ic), paste0("outer:", o_tiers[o]))
-    if (need()) {
-      i2 <- min(round + 1L, k_i)
-      o2 <- min(round + 1L, k_o)
-      push(stack_shape(o_wrong[[o2]], i_wrong[[i2]]),
-           paste0("both:", o_tiers[o2], "+", i_tiers[i2]))
-    }
-    round <- round + 1L
+    TRUE
   }
 
-  opts <- c(list(stack_shape(oc, ic)), cands)
+  q_inner <- lapply(seq_len(k_i), function(i) {
+    list(shape = stack_shape(oc, iw$shapes[[i]]), tier = paste0("inner:", iw$tiers[i]))
+  })
+  q_outer <- lapply(seq_len(k_o), function(o) {
+    list(shape = stack_shape(ow$shapes[[o]], ic), tier = paste0("outer:", ow$tiers[o]))
+  })
+  pairs <- expand.grid(o = seq_len(k_o), i = seq_len(k_i))
+  later <- !(pairs$o == pairs$i & pairs$o > 1)
+  pairs <- pairs[order(later, pairs$o + pairs$i, pairs$o), , drop = FALSE]
+  q_both <- lapply(seq_len(nrow(pairs)), function(r) {
+    o <- pairs$o[r]
+    i <- pairs$i[r]
+    list(shape = stack_shape(ow$shapes[[o]], iw$shapes[[i]]),
+         tier = paste0("both:", ow$tiers[o], "+", iw$tiers[i]))
+  })
+  queues <- list(q_inner, q_outer, q_both)
+  pos <- c(1L, 1L, 1L)
+  while (length(cands) < need) {
+    taken <- FALSE
+    for (q in 1:3) {
+      while (pos[q] <= length(queues[[q]])) {
+        cand <- queues[[q]][[pos[q]]]
+        pos[q] <- pos[q] + 1L
+        if (accept(cand$shape, cand$tier)) {
+          taken <- TRUE
+          break
+        }
+      }
+      if (length(cands) >= need) break
+    }
+    if (!taken) break
+  }
+
+  opts <- c(list(key), cands)
   all_tiers <- c("correct", tiers)
   perm <- sample.int(length(opts))
   layer_meta <- function(it) {
@@ -158,14 +220,21 @@ compose_layered <- function(outer, inner, n_options) {
   )
 }
 
+# Each layer is generated with at most LAYER_OPTIONS options of its own, so
+# that the outer layer never has to resort to size or fill distractors; the
+# composed item takes its n_options - 1 distractors from the combinations of
+# the layers' wrong options.
 make_layered_one <- function(outer_spec, inner_spec, n_options) {
-  outer <- generate_one(outer_spec[1], outer_spec[2], n_options)
-  if (!is_item_valid(outer, n_options) || !outer_layer_ok(outer)) {
-    stop("outer layer rejected", call. = FALSE)
+  layer_n <- min(n_options, LAYER_OPTIONS)
+  draw_layer <- function(spec, ok, what) {
+    for (k in seq_len(LAYER_TRIES)) {
+      it <- tryCatch(generate_one(spec[1], spec[2], layer_n), error = function(e) NULL)
+      if (!is.null(it) && is_item_valid(it, layer_n) && ok(it)) return(it)
+    }
+    stop(what, " layer rejected", call. = FALSE)
   }
-  outer <- pin_outer_size(outer)
-  inner <- generate_one(inner_spec[1], inner_spec[2], n_options)
-  if (!is_item_valid(inner, n_options)) stop("inner layer rejected", call. = FALSE)
+  outer <- pin_outer_size(draw_layer(outer_spec, outer_layer_ok, "outer"))
+  inner <- draw_layer(inner_spec, function(it) TRUE, "inner")
   compose_layered(outer, inner, n_options)
 }
 
@@ -203,11 +272,15 @@ check_layer_spec <- function(spec, which) {
 #' distractors are wrong in the inner layer, wrong in the outer layer or
 #' wrong in both, in that order of construction, and are recorded as such in
 #' `meta$distractor_tiers` (`"inner:<tier>"`, `"outer:<tier>"`,
-#' `"both:<tier>+<tier>"`). All option-uniqueness guarantees of single-layer
-#' items apply layer by layer. Because the inner layer is drawn small, the
-#' perceptual audit is switched on by default for two-layer items
-#' (`perceptual = TRUE`); it removes items whose inner-layer difference is
-#' too subtle at that scale.
+#' `"both:<tier>+<tier>"`). Each layer is generated with at most four
+#' options of its own; with more options the distractors are drawn from the
+#' combinations of the layers' wrong options, so any option count from 2 to
+#' 8 works. All option-uniqueness guarantees of single-layer items apply
+#' layer by layer, the inner layer being judged at the scale it is drawn
+#' (an inner stroke-width or small size step does not count as a
+#' difference). The perceptual audit is switched on by default for two-layer
+#' items (`perceptual = TRUE`); it compares the layers one by one, each at
+#' full tile size (see [perceptual_distance()]).
 #'
 #' @param outer,inner Character vectors `c(shape, rule)` describing the outer
 #'   and the inner layer; see [layer_shapes()] and [layer_rules()].

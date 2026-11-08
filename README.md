@@ -111,7 +111,11 @@ requires both rules, the classic "number of rules" manipulation of
 matrix-item difficulty (Carpenter, Just & Shell, 1990). Every distractor is
 wrong in the inner layer, in the outer layer or in both, and the design
 features record which (`distractor_tiers`, `outer_rule`, `inner_rule`,
-`n_layers`).
+`n_layers`). Any option count from 2 to 8 works: each layer is generated
+with at most four options and the distractors are drawn from the
+combinations of the layers' wrong options, the inner layer being judged at
+the scale it is drawn. The perceptual audit (on by default for two-layer
+items) compares the layers one by one, each at full tile size.
 
 ```r
 items <- generate_layered(outer = c("polygon", "progression"),

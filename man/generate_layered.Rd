@@ -64,11 +64,15 @@ Response options: the keyed option stacks the two correct answers; the
 distractors are wrong in the inner layer, wrong in the outer layer or
 wrong in both, in that order of construction, and are recorded as such in
 \code{meta$distractor_tiers} (\code{"inner:<tier>"}, \code{"outer:<tier>"},
-\code{"both:<tier>+<tier>"}). All option-uniqueness guarantees of single-layer
-items apply layer by layer. Because the inner layer is drawn small, the
-perceptual audit is switched on by default for two-layer items
-(\code{perceptual = TRUE}); it removes items whose inner-layer difference is
-too subtle at that scale.
+\code{"both:<tier>+<tier>"}). Each layer is generated with at most four
+options of its own; with more options the distractors are drawn from the
+combinations of the layers' wrong options, so any option count from 2 to
+8 works. All option-uniqueness guarantees of single-layer items apply
+layer by layer, the inner layer being judged at the scale it is drawn
+(an inner stroke-width or small size step does not count as a
+difference). The perceptual audit is switched on by default for two-layer
+items (\code{perceptual = TRUE}); it compares the layers one by one, each at
+full tile size (see \code{\link[=perceptual_distance]{perceptual_distance()}}).
 }
 \examples{
 items <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"),

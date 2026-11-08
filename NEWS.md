@@ -35,6 +35,15 @@
   exactly one answer per item (late clicks are ignored).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
+* Two-layer items work with any option count from 2 to 8: each layer is
+  generated with at most four options and the composed distractors are drawn
+  from the combinations of the layers' wrong options (previously the outer
+  layer had to supply all distractors itself and failed beyond five options).
+  Stacked options and cells are compared with the inner layer at the scale it
+  is drawn, so inner stroke-width or small size steps never serve as the only
+  difference; the perceptual audit compares two-layer items layer by layer,
+  each layer rendered at full tile size, because a blurred tile of the whole
+  cell cannot resolve the inner carrier.
 * Two-layer items (`generate_layered()`, `layer_shapes()`, `layer_rules()`):
   an outer and an inner carrier with their own rules superimposed cell by
   cell, as `com()` does in matRiks; distractors are wrong in the inner

@@ -131,6 +131,25 @@ tile_distance <- function(a, b) {
   min(1, max(sum(diff) / denom, max(diff)))
 }
 
+# Prepared tiles of a list of shapes: one tile set for single-layer shapes,
+# one tile set per layer for two-layer stacks, each layer rendered on its own
+# at full tile size. A blurred tile of the whole cell cannot resolve the inner
+# carrier, which fills only 36 % of the cell, whereas a person looking at it
+# can; so the layers are compared one by one and the distance between two
+# stacks is the larger of the two layer distances.
+prepare_layers <- function(shapes, px, blur) {
+  if (length(shapes) && all(vapply(shapes, is_stack, logical(1)))) {
+    return(lapply(1:2, function(k) {
+      prepare_tiles(lapply(shapes, function(s) s$layers[[k]]), px, blur)
+    }))
+  }
+  list(prepare_tiles(shapes, px, blur))
+}
+
+layer_distance <- function(layers, i, j) {
+  max(vapply(layers, function(tiles) tile_distance(tiles[[i]], tiles[[j]]), numeric(1)))
+}
+
 #' Perceptual distance between two shape configurations
 #'
 #' Renders both configurations to small rasters, converts them to CIELAB,
@@ -153,6 +172,12 @@ tile_distance <- function(a, b) {
 #' spikes, 7 vs 8 sides) are handled by the symbolic rules of
 #' [is_item_valid()] rather than by this metric.
 #'
+#' Options and cells of two-layer items (see [generate_layered()]) are
+#' compared layer by layer, each layer rendered on its own at full tile
+#' size, and the distance is the larger of the two layer distances: a
+#' blurred tile of the whole cell cannot resolve the inner carrier, which
+#' fills only 36 % of the cell, whereas a person looking at it can.
+#'
 #' Requires the **ragg** package or, as a fallback, the **png** package
 #' (the engine can be forced with `options(cogitem.raster = "png")`).
 #'
@@ -170,8 +195,8 @@ tile_distance <- function(a, b) {
 #' @export
 perceptual_distance <- function(a, b, px = 96, blur = 3) {
   stopifnot(inherits(a, "cog_shape"), inherits(b, "cog_shape"))
-  tiles <- prepare_tiles(list(a, b), px, blur)
-  tile_distance(tiles[[1]], tiles[[2]])
+  if (is_stack(a) != is_stack(b)) return(1)
+  layer_distance(prepare_layers(list(a, b), px, blur), 1, 2)
 }
 
 # Pairs of cells that must look different: nominally different, non-blank,
@@ -233,9 +258,9 @@ audit_item <- function(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, 
   shapes <- c(item$options, unlist(lapply(cp, function(p) list(p$a, p$b)), recursive = FALSE))
   sigs <- vapply(shapes, visual_signature, character(1))
   keep <- !duplicated(sigs)
-  tiles <- prepare_tiles(shapes[keep], px, blur)
+  layers <- prepare_layers(shapes[keep], px, blur)
   index <- match(sigs, sigs[keep])
-  dist_ij <- function(i, j) tile_distance(tiles[[index[i]]], tiles[[index[j]]])
+  dist_ij <- function(i, j) layer_distance(layers, index[i], index[j])
 
   n <- length(item$options)
   D <- matrix(NA_real_, n, n)
