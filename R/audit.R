@@ -8,7 +8,7 @@ DEFAULT_PERCEPTUAL_THRESHOLD <- 0.15
 # Render several shapes side by side on one capture device and return a list
 # of px x px x 3 sRGB arrays (one per shape). One device per call keeps the
 # audit fast.
-render_tiles <- function(shapes, px, th) {
+render_tiles <- function(shapes, px) {
   k <- length(shapes)
   ncol <- min(k, 6)
   nrow <- ceiling(k / ncol)
@@ -18,21 +18,21 @@ render_tiles <- function(shapes, px, th) {
     for (i in seq_len(k)) {
       pushViewport(viewport(layout.pos.row = (i - 1) %/% ncol + 1,
                             layout.pos.col = (i - 1) %% ncol + 1))
-      grid.draw(shape_grob(shapes[[i]], th, vp = viewport(width = 0.85, height = 0.85)))
+      grid.draw(shape_grob(shapes[[i]], vp = viewport(width = 0.85, height = 0.85)))
       popViewport()
     }
     popViewport()
   }
   if (requireNamespace("ragg", quietly = TRUE)) {
     cap <- ragg::agg_capture(width = px * ncol, height = px * nrow, units = "px",
-                             background = th$cell, res = 72)
+                             background = PALETTE$cell, res = 72)
     on.exit(grDevices::dev.off(), add = TRUE)
     draw_all()
     img <- cap(native = FALSE)
   } else if (isTRUE(capabilities("cairo"))) {
     f <- tempfile(fileext = ".png")
     on.exit(unlink(f), add = TRUE)
-    grDevices::png(f, width = px * ncol, height = px * nrow, bg = th$cell, type = "cairo")
+    grDevices::png(f, width = px * ncol, height = px * nrow, bg = PALETTE$cell, type = "cairo")
     on.exit(grDevices::dev.off(), add = TRUE, after = FALSE)
     draw_all()
     img <- grDevices::dev.capture(native = FALSE)
@@ -87,10 +87,10 @@ lab_distance_map <- function(A, B) {
 }
 
 # Blurred CIELAB tiles plus their total ink (distance from the background).
-prepare_tiles <- function(shapes, px, th, blur) {
-  tiles <- render_tiles(shapes, px, th)
+prepare_tiles <- function(shapes, px, blur) {
+  tiles <- render_tiles(shapes, px)
   r <- max(1, round(blur))
-  bg_lab <- as.numeric(srgb_to_lab(t(grDevices::col2rgb(th$cell) / 255)))
+  bg_lab <- as.numeric(srgb_to_lab(t(grDevices::col2rgb(PALETTE$cell) / 255)))
   BG <- array(rep(bg_lab, each = px * px), dim = c(px, px, 3))
   lapply(tiles, function(A) {
     L <- to_lab(A)
@@ -118,7 +118,7 @@ tile_distance <- function(a, b) {
 #' global change (another colour) both score high, while a 2-4 % change of
 #' size scores low.
 #'
-#' Calibration on known pairs (96 px, 3 px blur, light theme): identical 0;
+#' Calibration on known pairs (96 px, 3 px blur): identical 0;
 #' 1 % size change about 0.10; 2.5 % size change 0.16; heptagon vs octagon
 #' 0.18; pentagon vs hexagon 0.29; gray vs green stroke 0.33; blue vs purple
 #' stroke 0.45; one size bucket of the generator (0.65 vs 0.80) 0.63; marker
@@ -132,7 +132,6 @@ tile_distance <- function(a, b) {
 #'
 #' @param a,b [cog_shape()] objects.
 #' @param px Raster size in pixels (the rendered cell is `px` x `px`).
-#' @param theme Theme used for rendering.
 #' @param blur Blur radius in pixels.
 #' @return A number between 0 and 1.
 #' @examples
@@ -143,9 +142,9 @@ tile_distance <- function(a, b) {
 #' perceptual_distance(a, a)
 #' }
 #' @export
-perceptual_distance <- function(a, b, px = 96, theme = "light", blur = 3) {
+perceptual_distance <- function(a, b, px = 96, blur = 3) {
   stopifnot(inherits(a, "cog_shape"), inherits(b, "cog_shape"))
-  tiles <- prepare_tiles(list(a, b), px, get_theme(theme), blur)
+  tiles <- prepare_tiles(list(a, b), px, blur)
   tile_distance(tiles[[1]], tiles[[2]])
 }
 
@@ -190,7 +189,7 @@ cell_pairs <- function(item) {
 #' @param item A `cog_item`.
 #' @param x A `cog_item_set`.
 #' @param threshold Distances below this value count as confusable.
-#' @param px,theme,blur Passed to [perceptual_distance()].
+#' @param px,blur Passed to [perceptual_distance()].
 #' @return `audit_item()` returns a list with `min_option_distance`,
 #'   `option_pair`, `min_cell_distance`, `cell_pair`, `flagged` and the full
 #'   `option_distances` matrix; `audit_items()` a data frame.
@@ -200,17 +199,15 @@ cell_pairs <- function(item) {
 #' audit_items(items)
 #' }
 #' @export
-audit_item <- function(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96,
-                       theme = "light", blur = 3) {
+audit_item <- function(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3) {
   stopifnot(inherits(item, "cog_item"))
-  th <- get_theme(theme)
 
   # distinct shapes to render: options first, then differing cells
   cp <- cell_pairs(item)
   shapes <- c(item$options, unlist(lapply(cp, function(p) list(p$a, p$b)), recursive = FALSE))
   sigs <- vapply(shapes, visual_signature, character(1))
   keep <- !duplicated(sigs)
-  tiles <- prepare_tiles(shapes[keep], px, th, blur)
+  tiles <- prepare_tiles(shapes[keep], px, blur)
   index <- match(sigs, sigs[keep])
   dist_ij <- function(i, j) tile_distance(tiles[[index[i]]], tiles[[index[j]]])
 
@@ -238,11 +235,10 @@ audit_item <- function(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96,
 
 #' @rdname audit_item
 #' @export
-audit_items <- function(x, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96,
-                        theme = "light", blur = 3) {
+audit_items <- function(x, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3) {
   items <- as_item_list(x)
   rows <- lapply(items, function(it) {
-    a <- audit_item(it, threshold = threshold, px = px, theme = theme, blur = blur)
+    a <- audit_item(it, threshold = threshold, px = px, blur = blur)
     data.frame(id = it$id, shape = it$shape, rule = it$rule,
                min_option_distance = round(a$min_option_distance, 3),
                option_pair = a$option_pair,

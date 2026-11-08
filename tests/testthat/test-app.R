@@ -7,7 +7,7 @@ test_that("the Shiny server logic generates, browses and administers items", {
   shiny::testServer(app_dir, {
     # Generate
     session$setInputs(shape = "dice", rule = "addition", n = 3, seed = "1",
-                      n_options = 4, theme = "dark")
+                      n_options = 4)
     session$setInputs(generate = 1)
     expect_s3_class(items(), "cog_item_set")
     expect_equal(length(items()), 3)

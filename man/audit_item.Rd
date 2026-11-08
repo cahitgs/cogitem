@@ -5,28 +5,16 @@
 \alias{audit_items}
 \title{Perceptual audit of items}
 \usage{
-audit_item(
-  item,
-  threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
-  px = 96,
-  theme = "light",
-  blur = 3
-)
+audit_item(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3)
 
-audit_items(
-  x,
-  threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
-  px = 96,
-  theme = "light",
-  blur = 3
-)
+audit_items(x, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3)
 }
 \arguments{
 \item{item}{A \code{cog_item}.}
 
 \item{threshold}{Distances below this value count as confusable.}
 
-\item{px, theme, blur}{Passed to \code{\link[=perceptual_distance]{perceptual_distance()}}.}
+\item{px, blur}{Passed to \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 
 \item{x}{A \code{cog_item_set}.}
 }

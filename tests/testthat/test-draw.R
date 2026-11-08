@@ -1,14 +1,12 @@
-test_that("every shape family draws without error in both themes", {
+test_that("every shape family draws without error", {
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off(), add = TRUE)
   set.seed(42)
   for (kind in cog_shapes()) {
     for (k in 1:3) {
       s <- cogitem:::random_base_shape(kind)
-      for (theme in c("light", "dark")) {
-        grid::grid.newpage()
-        expect_silent(grid::grid.draw(shape_grob(s, theme = theme)))
-      }
+      grid::grid.newpage()
+      expect_silent(grid::grid.draw(shape_grob(s)))
     }
   }
   # patterned sector pie exercises the clipped hatch code
@@ -27,7 +25,7 @@ test_that("items and item sets plot", {
   on.exit(grDevices::dev.off(), add = TRUE)
   set <- generate_items("checkerboard", "and", n = 3, seed = 6)
   expect_silent(plot(set[[1]]))
-  expect_silent(plot(set[[1]], theme = "dark", show_answer = TRUE, layout = "horizontal"))
+  expect_silent(plot(set[[1]], show_answer = TRUE, layout = "horizontal"))
   expect_silent(plot(set, n = 3, ncol = 3))
   d2 <- generate_items("arrow", "dist-of-2", n = 1, seed = 6)
   expect_silent(plot(d2[[1]]))

@@ -30,7 +30,7 @@ save_booklet(x, file, width = 8.27, height = 11.69, answer_key = TRUE, ...)
 
 \item{dpi}{Resolution for raster formats.}
 
-\item{...}{Passed to \code{\link[=plot.cog_item]{plot.cog_item()}} (\code{theme}, \code{show_answer}, \code{layout},
+\item{...}{Passed to \code{\link[=plot.cog_item]{plot.cog_item()}} (\code{show_answer}, \code{layout},
 \code{labels}, \code{bg}).}
 
 \item{x}{A \code{cog_item_set}.}

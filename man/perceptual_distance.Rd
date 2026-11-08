@@ -4,14 +4,12 @@
 \alias{perceptual_distance}
 \title{Perceptual distance between two shape configurations}
 \usage{
-perceptual_distance(a, b, px = 96, theme = "light", blur = 3)
+perceptual_distance(a, b, px = 96, blur = 3)
 }
 \arguments{
 \item{a, b}{\code{\link[=cog_shape]{cog_shape()}} objects.}
 
 \item{px}{Raster size in pixels (the rendered cell is \code{px} x \code{px}).}
-
-\item{theme}{Theme used for rendering.}
 
 \item{blur}{Blur radius in pixels.}
 }
@@ -30,7 +28,7 @@ global change (another colour) both score high, while a 2-4 \% change of
 size scores low.
 }
 \details{
-Calibration on known pairs (96 px, 3 px blur, light theme): identical 0;
+Calibration on known pairs (96 px, 3 px blur): identical 0;
 1 \% size change about 0.10; 2.5 \% size change 0.16; heptagon vs octagon
 0.18; pentagon vs hexagon 0.29; gray vs green stroke 0.33; blue vs purple
 stroke 0.45; one size bucket of the generator (0.65 vs 0.80) 0.63; marker

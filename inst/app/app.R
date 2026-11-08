@@ -13,49 +13,26 @@ THUMBS_PER_PAGE <- 12
 MAX_OPTIONS <- 8
 BASE_FONT <- "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 
-app_theme <- function(mode = c("light", "dark")) {
-  mode <- match.arg(mode)
-  if (mode == "dark") {
-    bs_theme(version = 5, bg = "#0f0f12", fg = "#e4e4e7", primary = "#a78bfa",
-             secondary = "#23252e", success = "#34d399", danger = "#f87171",
-             base_font = BASE_FONT)
-  } else {
-    bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
-             secondary = "#e4e4e7", success = "#047857", danger = "#b91c1c",
-             base_font = BASE_FONT)
-  }
-}
+app_theme <- bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
+                      secondary = "#e4e4e7", success = "#047857", danger = "#b91c1c",
+                      base_font = BASE_FONT)
 
 css <- "
-.cog-card { border: 1px solid; border-radius: 12px; padding: 12px; }
-.cog-thumb { border: 1px solid; border-radius: 10px; padding: 6px; }
+.cog-card { border: 1px solid #d4d4d8; border-radius: 12px; padding: 12px; background: #f4f4f5; }
+.cog-thumb { border: 1px solid #d4d4d8; border-radius: 10px; padding: 6px; background: #f4f4f5; }
 .cog-thumb .cap { font-size: 0.75rem; padding: 2px 6px; }
 .cog-opt { display: inline-block; width: 136px; height: 136px; margin: 6px; border-radius: 10px;
-           border: 2px solid transparent; cursor: pointer; }
+           border: 2px solid #e4e4e7; background: #ffffff; cursor: pointer; }
+.cog-opt:hover { border-color: #6d28d9; }
 .cog-opt.disabled { cursor: default; }
-.cog-opt.disabled:hover { border-color: transparent; }
+.cog-opt.disabled:hover { border-color: #e4e4e7; }
+.cog-opt.correct, .cog-opt.disabled.correct:hover { border-color: #047857; }
+.cog-opt.wrong, .cog-opt.disabled.wrong:hover { border-color: #b91c1c; }
 .cog-muted { opacity: 0.7; }
-
-body.cog-light .cog-card, body.cog-light .cog-thumb { background: #f4f4f5; border-color: #d4d4d8; }
-body.cog-light .cog-opt { background: #ffffff; border-color: #e4e4e7; }
-body.cog-light .cog-opt:hover { border-color: #6d28d9; }
-body.cog-light .cog-opt.correct, body.cog-light .cog-opt.disabled.correct:hover { border-color: #047857; }
-body.cog-light .cog-opt.wrong, body.cog-light .cog-opt.disabled.wrong:hover { border-color: #b91c1c; }
-
-body.cog-dark .cog-card, body.cog-dark .cog-thumb { background: #1a1b22; border-color: #2e303a; }
-body.cog-dark .cog-opt { background: #23252e; }
-body.cog-dark .cog-opt:hover { border-color: #a78bfa; }
-body.cog-dark .cog-opt.correct, body.cog-dark .cog-opt.disabled.correct:hover { border-color: #34d399; }
-body.cog-dark .cog-opt.wrong, body.cog-dark .cog-opt.disabled.wrong:hover { border-color: #f87171; }
 "
 
 js <- "
 window.cogStart = Date.now(); window.cogHovers = [];
-document.addEventListener('DOMContentLoaded', function() { document.body.classList.add('cog-light'); });
-Shiny.addCustomMessageHandler('cog-mode', function(mode) {
-  document.body.classList.remove('cog-light', 'cog-dark');
-  document.body.classList.add('cog-' + mode);
-});
 Shiny.addCustomMessageHandler('cog-item-start', function(m) {
   window.cogStart = Date.now(); window.cogHovers = [];
 });
@@ -77,7 +54,7 @@ function cogSkip() {
 ui <- page_navbar(
   title = "Cogitem",
   id = "nav",
-  theme = app_theme("light"),
+  theme = app_theme,
   header = tags$head(tags$style(HTML(css)), tags$script(HTML(js))),
   nav_panel(
     "Generate",
@@ -149,22 +126,13 @@ ui <- page_navbar(
         p("Items exported as JSON are interchangeable with the Cogitem web application: ",
           tags$a(href = "https://cahitgs.github.io/itemgen1/", "cahitgs.github.io/itemgen1")),
         p(class = "cog-muted", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
-  ),
-  nav_spacer(),
-  nav_item(selectInput("theme", NULL, c("light", "dark"), selected = "light", width = "110px"))
+  )
 )
 
 server <- function(input, output, session) {
   `%||%` <- function(a, b) if (is.null(a)) b else a
   items <- reactiveVal(getOption("cogitem.preloaded"))
   page <- reactiveVal(1L)
-  theme <- reactive(input$theme %||% "light")
-
-  observeEvent(input$theme, {
-    session$setCurrentTheme(app_theme(input$theme))
-    session$sendCustomMessage("cog-mode", input$theme)
-  }, ignoreInit = TRUE)
-
   # Keep the rule list consistent with the selected shape.
   observeEvent(input$shape, {
     ok <- cogitem::supported_rules(input$shape)
@@ -261,7 +229,7 @@ server <- function(input, output, session) {
       x <- items()
       i <- (page() - 1L) * THUMBS_PER_PAGE + k
       req(!is.null(x), i <= length(x))
-      plot(x[[i]], theme = theme(), show_answer = TRUE, bg = NA, labels = FALSE)
+      plot(x[[i]], show_answer = TRUE, bg = NA, labels = FALSE)
     }, bg = "transparent")
   })
 
@@ -300,7 +268,7 @@ server <- function(input, output, session) {
     filename = function() paste0(stem(), "-booklet.pdf"),
     content = function(file) {
       withProgress(message = "Rendering PDF...", {
-        cogitem::save_booklet(items(), file, theme = "light")
+        cogitem::save_booklet(items(), file)
       })
     }
   )
@@ -317,7 +285,7 @@ server <- function(input, output, session) {
     x[[min(input$browse_idx, length(x))]]
   })
   output$browse_plot <- renderPlot({
-    plot(browse_item(), theme = theme(), show_answer = isTRUE(input$show_answer),
+    plot(browse_item(), show_answer = isTRUE(input$show_answer),
          layout = input$layout, bg = NA)
   }, bg = "transparent")
   output$browse_features <- renderTable({
@@ -479,7 +447,7 @@ server <- function(input, output, session) {
 
   output$admin_matrix <- renderPlot({
     grid.newpage()
-    grid.draw(cogitem::matrix_grob(current_item(), theme = theme()))
+    grid.draw(cogitem::matrix_grob(current_item()))
   }, bg = "transparent")
 
   lapply(seq_len(MAX_OPTIONS), function(i) {
@@ -487,8 +455,7 @@ server <- function(input, output, session) {
       it <- current_item()
       req(i <= it$n_options)
       grid.newpage()
-      grid.draw(cogitem::shape_grob(it$options[[i]], theme = theme(),
-                                    vp = viewport(width = 0.85, height = 0.85)))
+      grid.draw(cogitem::shape_grob(it$options[[i]], vp = viewport(width = 0.85, height = 0.85)))
     }, bg = "transparent")
   })
 

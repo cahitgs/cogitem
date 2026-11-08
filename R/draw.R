@@ -3,36 +3,21 @@
 # 0-100 TOP to bottom (yscale is reversed), so the geometry matches the SVG
 # renderers of the Cogitem web application unit for unit.
 
-THEMES <- list(
-  dark = list(
-    name = "dark",
-    bg = "#0f0f12", panel = "#1a1b22", cell = "#23252e", border = "#2e303a",
-    text = "#e4e4e7", muted = "#9ca3af", accent = "#a78bfa",
-    success = "#34d399", danger = "#f87171",
-    map = c()
-  ),
-  light = list(
-    name = "light",
-    bg = "#ffffff", panel = "#f4f4f5", cell = "#ffffff", border = "#d4d4d8",
-    text = "#18181b", muted = "#71717a", accent = "#6d28d9",
-    success = "#047857", danger = "#b91c1c",
-    # dark-on-light equivalents of the generator palette, chosen so that every
-    # pair stays distinguishable (blue is pushed towards cyan, purple towards
-    # violet)
-    map = c("#e4e4e7" = "#27272a", "#a78bfa" = "#7c3aed", "#34d399" = "#047857",
-            "#f59e0b" = "#b45309", "#60a5fa" = "#0369a1")
-  )
+# Display palette: items are drawn dark-on-light. The generator's stroke
+# colours (STROKE_PALETTE, designed for the web app's dark background) are
+# mapped to darker equivalents chosen so that every pair stays
+# distinguishable (blue is pushed towards cyan, purple towards violet).
+PALETTE <- list(
+  bg = "#ffffff", panel = "#f4f4f5", cell = "#ffffff", border = "#d4d4d8",
+  text = "#18181b", muted = "#71717a", accent = "#6d28d9",
+  success = "#047857", danger = "#b91c1c",
+  map = c("#e4e4e7" = "#27272a", "#a78bfa" = "#7c3aed", "#34d399" = "#047857",
+          "#f59e0b" = "#b45309", "#60a5fa" = "#0369a1")
 )
 
-get_theme <- function(theme) {
-  if (is.list(theme)) return(theme)
-  theme <- match.arg(theme, names(THEMES))
-  THEMES[[theme]]
-}
-
 # Translate a CSS colour (hex, rgb(), rgba(), 'none', 'transparent') to an R
-# colour, applying the theme's palette mapping for dark-palette strokes.
-css_color <- function(col, theme) {
+# colour, applying the display palette mapping to generator strokes.
+css_color <- function(col) {
   if (is.null(col) || length(col) == 0 || is.na(col)) return(NA)
   col <- trimws(col)
   if (col %in% c("none", "transparent", "")) return(NA)
@@ -41,7 +26,7 @@ css_color <- function(col, theme) {
     alpha <- if (length(nums) >= 4) nums[4] else 1
     return(grDevices::rgb(nums[1], nums[2], nums[3], alpha = alpha * 255, maxColorValue = 255))
   }
-  mapped <- theme$map[tolower(col)]
+  mapped <- PALETTE$map[tolower(col)]
   if (length(mapped) == 1 && !is.na(mapped)) return(unname(mapped))
   col
 }
@@ -54,8 +39,6 @@ css_color <- function(col, theme) {
 #' it on a new page.
 #'
 #' @param s A [cog_shape()].
-#' @param theme `"light"` (default, for print) or `"dark"` (the web app's
-#'   palette), or a theme list as returned internally.
 #' @param name,vp Passed to [grid::gTree()].
 #' @return A `gTree`.
 #' @examples
@@ -63,9 +46,9 @@ css_color <- function(col, theme) {
 #' grid.newpage()
 #' grid.draw(shape_grob(cog_shape("spike-ring", list(spikeCount = 8))))
 #' @export
-shape_grob <- function(s, theme = "light", name = NULL, vp = NULL) {
+shape_grob <- function(s, name = NULL, vp = NULL) {
   stopifnot(inherits(s, "cog_shape"))
-  gTree(shape = s, theme = get_theme(theme), name = name, vp = vp, cl = "cog_shape_grob")
+  gTree(shape = s, name = name, vp = vp, cl = "cog_shape_grob")
 }
 
 #' @exportS3Method grid::makeContent
@@ -73,18 +56,17 @@ makeContent.cog_shape_grob <- function(x) {
   w_in <- convertWidth(unit(1, "npc"), "inches", valueOnly = TRUE)
   h_in <- convertHeight(unit(1, "npc"), "inches", valueOnly = TRUE)
   lw <- min(w_in, h_in) * 96 / 100 # lwd per viewBox unit (lwd 1 = 1/96 inch)
-  setChildren(x, build_shape(x$shape, x$theme, lw))
+  setChildren(x, build_shape(x$shape, lw))
 }
 
 #' @rdname shape_grob
 #' @param x A `cog_shape` (plot method).
 #' @param ... Ignored.
 #' @export
-plot.cog_shape <- function(x, theme = "light", ...) {
-  th <- get_theme(theme)
+plot.cog_shape <- function(x, ...) {
   grid.newpage()
-  grid.rect(gp = gpar(fill = th$bg, col = NA))
-  grid.draw(shape_grob(x, theme = th, vp = viewport(width = 0.8, height = 0.8)))
+  grid.rect(gp = gpar(fill = PALETTE$bg, col = NA))
+  grid.draw(shape_grob(x, vp = viewport(width = 0.8, height = 0.8)))
   invisible(x)
 }
 
@@ -107,10 +89,10 @@ rect_tl <- function(x, y, w, h, gp, vp = NULL) {
            gp = gp, vp = vp)
 }
 
-build_shape <- function(s, theme, lw) {
+build_shape <- function(s, lw) {
   if (is_blank_cell(s)) return(gList())
-  stroke <- css_color(s$stroke, theme)
-  fill <- css_color(s$fill, theme)
+  stroke <- css_color(s$stroke)
+  fill <- css_color(s$fill)
   p <- s$params
   sw <- s$strokeWidth
   lwd_of <- function(w) max(0.3, w * lw)
@@ -345,7 +327,7 @@ build_shape <- function(s, theme, lw) {
       }
       do.call(gList, grobs)
     },
-    gList(textGrob(paste0(s$kind, "?"), gp = gpar(col = theme$muted)))
+    gList(textGrob(paste0(s$kind, "?"), gp = gpar(col = PALETTE$muted)))
   )
 
   rotation <- s$rotation

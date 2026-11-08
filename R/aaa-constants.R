@@ -3,8 +3,8 @@
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
-# Stroke colours of the generator palette (designed for a dark background;
-# see THEMES in plot.R for the light-background mapping).
+# Stroke colours of the generator palette (designed for the web app's dark
+# background; see PALETTE in draw.R for the display mapping).
 STROKE_PALETTE <- c(
   "#e4e4e7", # light gray (default)
   "#a78bfa", # accent purple

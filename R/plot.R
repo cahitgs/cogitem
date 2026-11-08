@@ -17,20 +17,20 @@ makeContent.cog_fit_text <- function(x) {
 }
 
 # One matrix or option cell: rounded background + shape (85 % of the cell).
-cell_grob <- function(s, theme, missing = FALSE, border = NA, border_lwd = 1,
+cell_grob <- function(s, missing = FALSE, border = NA, border_lwd = 1,
                       show_qmark = TRUE) {
   bg <- roundrectGrob(r = unit(0.08, "snpc"),
-                      gp = gpar(fill = theme$cell, col = border, lwd = border_lwd))
+                      gp = gpar(fill = PALETTE$cell, col = border, lwd = border_lwd))
   if (missing) {
-    return(gTree(children = gList(bg, if (show_qmark) fit_text_grob("?", 0.5, theme$muted) else nullGrob())))
+    return(gTree(children = gList(bg, if (show_qmark) fit_text_grob("?", 0.5, PALETTE$muted) else nullGrob())))
   }
   if (is_blank_cell(s)) {
     return(gTree(children = gList(
       roundrectGrob(r = unit(0.08, "snpc"),
-                    gp = gpar(fill = NA, col = theme$muted, lty = "dashed", lwd = 1.2))
+                    gp = gpar(fill = NA, col = PALETTE$muted, lty = "dashed", lwd = 1.2))
     )))
   }
-  gTree(children = gList(bg, shape_grob(s, theme, vp = viewport(width = 0.85, height = 0.85))))
+  gTree(children = gList(bg, shape_grob(s, vp = viewport(width = 0.85, height = 0.85))))
 }
 
 #' Grid grobs for the matrix and the response options of an item
@@ -41,7 +41,6 @@ cell_grob <- function(s, theme, missing = FALSE, border = NA, border_lwd = 1,
 #' viewport they are drawn in; [plot.cog_item()] is the convenience wrapper.
 #'
 #' @param item A `cog_item`.
-#' @param theme `"light"` or `"dark"`.
 #' @param show_answer Highlight the correct option?
 #' @param labels Number the options?
 #' @param highlight Optional option index to outline (for feedback).
@@ -61,20 +60,19 @@ NULL
 
 #' @rdname item_grobs
 #' @export
-matrix_grob <- function(item, theme = "light", name = NULL) {
-  th <- get_theme(theme)
+matrix_grob <- function(item, name = NULL) {
   pad <- 0.04
   gap <- 0.02
   cell <- (1 - 2 * pad - 2 * gap) / 3
   kids <- list(roundrectGrob(r = unit(0.03, "snpc"),
-                             gp = gpar(fill = th$panel, col = th$border, lwd = 1)))
+                             gp = gpar(fill = PALETTE$panel, col = PALETTE$border, lwd = 1)))
   for (r in 0:2) {
     for (c in 0:2) {
       cx <- pad + c * (cell + gap) + cell / 2
       cy <- 1 - (pad + r * (cell + gap) + cell / 2)
       missing <- r == 2 && c == 2
       kids[[length(kids) + 1]] <- gTree(
-        children = gList(cell_grob(item$cells[[r + 1]][[c + 1]], th, missing = missing)),
+        children = gList(cell_grob(item$cells[[r + 1]][[c + 1]], missing = missing)),
         vp = viewport(x = cx, y = cy, width = cell, height = cell)
       )
     }
@@ -85,10 +83,9 @@ matrix_grob <- function(item, theme = "light", name = NULL) {
 
 #' @rdname item_grobs
 #' @export
-options_grob <- function(item, theme = "light", show_answer = FALSE, labels = TRUE,
+options_grob <- function(item, show_answer = FALSE, labels = TRUE,
                          highlight = NULL, highlight_kind = c("correct", "wrong"),
                          ncol = NULL, name = NULL) {
-  th <- get_theme(theme)
   highlight_kind <- match.arg(highlight_kind)
   n <- item$n_options
   ncol <- ncol %||% min(n, 4)
@@ -105,19 +102,19 @@ options_grob <- function(item, theme = "light", show_answer = FALSE, labels = TR
     border <- NA
     border_lwd <- 1
     if (show_answer && i == item$correct) {
-      border <- th$success; border_lwd <- 3
+      border <- PALETTE$success; border_lwd <- 3
     }
     if (!is.null(highlight) && i == highlight) {
-      border <- if (highlight_kind == "correct") th$success else th$danger
+      border <- if (highlight_kind == "correct") PALETTE$success else PALETTE$danger
       border_lwd <- 3
     }
     body <- gTree(
-      children = gList(cell_grob(item$options[[i]], th, border = border, border_lwd = border_lwd)),
+      children = gList(cell_grob(item$options[[i]], border = border, border_lwd = border_lwd)),
       vp = viewport(x = 0.5, y = 1, just = c("centre", "top"),
                     width = unit(0.9, "snpc"), height = unit(0.9, "snpc"))
     )
     lab <- if (labels) {
-      fit_text_grob(as.character(i), frac = 0.5, col = th$muted, fontface = "plain")
+      fit_text_grob(as.character(i), frac = 0.5, col = PALETTE$muted, fontface = "plain")
     } else nullGrob()
     lab_vp <- viewport(x = 0.5, y = 0, just = c("centre", "bottom"),
                        height = unit(label_h / (1 + label_h), "npc"))
@@ -132,10 +129,9 @@ options_grob <- function(item, theme = "light", show_answer = FALSE, labels = TR
 
 #' @rdname item_grobs
 #' @export
-item_grob <- function(item, theme = "light", show_answer = FALSE, labels = TRUE,
+item_grob <- function(item, show_answer = FALSE, labels = TRUE,
                       layout = c("vertical", "horizontal"), name = NULL) {
   stopifnot(inherits(item, "cog_item"))
-  th <- get_theme(theme)
   layout <- match.arg(layout)
   n <- item$n_options
   if (layout == "vertical") {
@@ -158,8 +154,8 @@ item_grob <- function(item, theme = "light", show_answer = FALSE, labels = TRUE,
   }
   gTree(
     children = gList(
-      gTree(children = gList(matrix_grob(item, th)), vp = mat_vp),
-      gTree(children = gList(options_grob(item, th, show_answer = show_answer,
+      gTree(children = gList(matrix_grob(item)), vp = mat_vp),
+      gTree(children = gList(options_grob(item, show_answer = show_answer,
                                           labels = labels, ncol = ncol)),
             vp = opt_vp)
     ),
@@ -174,12 +170,10 @@ item_grob <- function(item, theme = "light", show_answer = FALSE, labels = TRUE,
 #' `plot.cog_item_set()` draws a contact sheet of the first `n` items.
 #'
 #' @param x A `cog_item` or `cog_item_set`.
-#' @param theme `"light"` (default) or `"dark"`.
 #' @param show_answer Outline the correct option?
 #' @param labels Number the options?
 #' @param layout `"vertical"` or `"horizontal"`.
-#' @param bg Background colour; `NA` for transparent. Defaults to the theme
-#'   background.
+#' @param bg Background colour; `NA` for transparent. Defaults to white.
 #' @param newpage Call [grid::grid.newpage()] first?
 #' @param n,ncol Number of items and columns of the contact sheet.
 #' @param captions Print id, rule and difficulty above each item of the sheet?
@@ -190,24 +184,22 @@ item_grob <- function(item, theme = "light", show_answer = FALSE, labels = TRUE,
 #' plot(items[[1]], show_answer = TRUE)
 #' plot(items, n = 4, ncol = 2)
 #' @export
-plot.cog_item <- function(x, theme = "light", show_answer = FALSE, labels = TRUE,
+plot.cog_item <- function(x, show_answer = FALSE, labels = TRUE,
                           layout = c("vertical", "horizontal"), bg = NULL,
                           newpage = TRUE, ...) {
-  th <- get_theme(theme)
-  bg <- if (is.null(bg)) th$bg else bg
+  bg <- if (is.null(bg)) PALETTE$bg else bg
   if (newpage) grid.newpage()
   if (!is.na(bg)) grid.rect(gp = gpar(fill = bg, col = NA))
-  grid.draw(item_grob(x, theme = th, show_answer = show_answer, labels = labels,
+  grid.draw(item_grob(x, show_answer = show_answer, labels = labels,
                       layout = layout))
   invisible(x)
 }
 
 #' @rdname plot.cog_item
 #' @export
-plot.cog_item_set <- function(x, n = 6, ncol = 3, theme = "light", show_answer = FALSE,
+plot.cog_item_set <- function(x, n = 6, ncol = 3, show_answer = FALSE,
                               captions = TRUE, bg = NULL, newpage = TRUE, ...) {
-  th <- get_theme(theme)
-  bg <- if (is.null(bg)) th$bg else bg
+  bg <- if (is.null(bg)) PALETTE$bg else bg
   n <- min(n, length(x))
   if (n == 0) stop("Empty item set", call. = FALSE)
   ncol <- min(ncol, n)
@@ -223,13 +215,13 @@ plot.cog_item_set <- function(x, n = 6, ncol = 3, theme = "light", show_answer =
       pushViewport(viewport(y = 1, height = 0.08, just = "top"))
       grid.draw(fit_text_grob(sprintf("%d. %s / %s  (d=%s)", i, it$shape, it$rule,
                                       format(it$difficulty)),
-                              frac = 0.45, col = th$muted, fontface = "plain"))
+                              frac = 0.45, col = PALETTE$muted, fontface = "plain"))
       popViewport()
       pushViewport(viewport(y = 0, height = 0.9, just = "bottom", width = 0.94))
     } else {
       pushViewport(viewport(width = 0.94, height = 0.94))
     }
-    grid.draw(item_grob(it, theme = th, show_answer = show_answer))
+    grid.draw(item_grob(it, show_answer = show_answer))
     popViewport(2)
   }
   popViewport()
@@ -271,7 +263,7 @@ open_device <- function(file, width, height, dpi) {
 #' @param width,height Device size in inches.
 #' @param dpi Resolution for raster formats.
 #' @param answer_key Append an answer-key page to the booklet?
-#' @param ... Passed to [plot.cog_item()] (`theme`, `show_answer`, `layout`,
+#' @param ... Passed to [plot.cog_item()] (`show_answer`, `layout`,
 #'   `labels`, `bg`).
 #' @return The file path(s), invisibly.
 #' @examples
@@ -307,13 +299,12 @@ save_booklet <- function(x, file, width = 8.27, height = 11.69, answer_key = TRU
   stopifnot(inherits(x, "cog_item_set"), length(x) > 0)
   grDevices::pdf(file, width = width, height = height, onefile = TRUE)
   on.exit(grDevices::dev.off(), add = TRUE)
-  th <- get_theme(list(...)$theme %||% "light")
   for (i in seq_along(x)) {
     grid.newpage()
-    grid.rect(gp = gpar(fill = th$bg, col = NA))
+    grid.rect(gp = gpar(fill = PALETTE$bg, col = NA))
     pushViewport(viewport(y = 1, height = 0.06, just = "top"))
     grid.draw(fit_text_grob(sprintf("Item %d / %d", i, length(x)), frac = 0.4,
-                            col = th$muted, fontface = "plain"))
+                            col = PALETTE$muted, fontface = "plain"))
     popViewport()
     pushViewport(viewport(y = 0.02, height = 0.9, width = 0.9, just = "bottom"))
     plot(x[[i]], newpage = FALSE, bg = NA, ...)
@@ -321,16 +312,16 @@ save_booklet <- function(x, file, width = 8.27, height = 11.69, answer_key = TRU
   }
   if (answer_key) {
     grid.newpage()
-    grid.rect(gp = gpar(fill = th$bg, col = NA))
+    grid.rect(gp = gpar(fill = PALETTE$bg, col = NA))
     key <- vapply(seq_along(x), function(i) sprintf("%3d: %d", i, x[[i]]$correct), "")
     ncol <- ceiling(length(key) / 40)
     cols <- split(key, ceiling(seq_along(key) / 40))
     pushViewport(viewport(width = 0.9, height = 0.9))
     grid.text("Answer key", x = 0, y = 1, just = c("left", "top"),
-              gp = gpar(fontsize = 16, fontface = "bold", col = th$text))
+              gp = gpar(fontsize = 16, fontface = "bold", col = PALETTE$text))
     for (j in seq_along(cols)) {
       grid.text(paste(cols[[j]], collapse = "\n"), x = (j - 1) / ncol, y = 0.93,
-                just = c("left", "top"), gp = gpar(fontsize = 10, family = "mono", col = th$text))
+                just = c("left", "top"), gp = gpar(fontsize = 10, family = "mono", col = PALETTE$text))
     }
     popViewport()
   }

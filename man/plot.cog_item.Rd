@@ -7,7 +7,6 @@
 \usage{
 \method{plot}{cog_item}(
   x,
-  theme = "light",
   show_answer = FALSE,
   labels = TRUE,
   layout = c("vertical", "horizontal"),
@@ -20,7 +19,6 @@
   x,
   n = 6,
   ncol = 3,
-  theme = "light",
   show_answer = FALSE,
   captions = TRUE,
   bg = NULL,
@@ -31,16 +29,13 @@
 \arguments{
 \item{x}{A \code{cog_item} or \code{cog_item_set}.}
 
-\item{theme}{\code{"light"} (default) or \code{"dark"}.}
-
 \item{show_answer}{Outline the correct option?}
 
 \item{labels}{Number the options?}
 
 \item{layout}{\code{"vertical"} or \code{"horizontal"}.}
 
-\item{bg}{Background colour; \code{NA} for transparent. Defaults to the theme
-background.}
+\item{bg}{Background colour; \code{NA} for transparent. Defaults to white.}
 
 \item{newpage}{Call \code{\link[grid:grid.newpage]{grid::grid.newpage()}} first?}
 

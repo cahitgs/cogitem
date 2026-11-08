@@ -7,11 +7,10 @@
 \alias{item_grob}
 \title{Grid grobs for the matrix and the response options of an item}
 \usage{
-matrix_grob(item, theme = "light", name = NULL)
+matrix_grob(item, name = NULL)
 
 options_grob(
   item,
-  theme = "light",
   show_answer = FALSE,
   labels = TRUE,
   highlight = NULL,
@@ -22,7 +21,6 @@ options_grob(
 
 item_grob(
   item,
-  theme = "light",
   show_answer = FALSE,
   labels = TRUE,
   layout = c("vertical", "horizontal"),
@@ -31,8 +29,6 @@ item_grob(
 }
 \arguments{
 \item{item}{A \code{cog_item}.}
-
-\item{theme}{\code{"light"} or \code{"dark"}.}
 
 \item{name}{Grob name.}
 

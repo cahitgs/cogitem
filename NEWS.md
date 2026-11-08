@@ -20,7 +20,7 @@
   `Dice.tsx` scales only the padding, which made the size axis invisible).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
-* grid-based rendering in light and dark themes (`plot()`, `shape_grob()`,
+* grid-based rendering (`plot()`, `shape_grob()`,
   `matrix_grob()`, `options_grob()`), export to PNG/PDF/SVG and PDF booklets
   (`save_item()`, `save_items()`, `save_booklet()`).
 * JSON interchange with the web application (`write_items_json()`,

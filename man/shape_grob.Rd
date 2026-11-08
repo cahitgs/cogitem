@@ -5,15 +5,12 @@
 \alias{plot.cog_shape}
 \title{Grid grob for a shape configuration}
 \usage{
-shape_grob(s, theme = "light", name = NULL, vp = NULL)
+shape_grob(s, name = NULL, vp = NULL)
 
-\method{plot}{cog_shape}(x, theme = "light", ...)
+\method{plot}{cog_shape}(x, ...)
 }
 \arguments{
 \item{s}{A \code{\link[=cog_shape]{cog_shape()}}.}
-
-\item{theme}{\code{"light"} (default, for print) or \code{"dark"} (the web app's
-palette), or a theme list as returned internally.}
 
 \item{name, vp}{Passed to \code{\link[grid:gTree]{grid::gTree()}}.}
 
