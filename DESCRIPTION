@@ -29,6 +29,7 @@ Imports:
 Suggests:
     shiny (>= 1.7),
     bslib,
+    callr,
     ragg,
     testthat (>= 3.0.0),
     knitr,

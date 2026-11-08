@@ -1,6 +1,7 @@
 test_that("the Shiny server logic generates, browses and administers items", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
+  skip_if_not_installed("callr")
   app_dir <- system.file("app", package = "cogitem")
   expect_true(nzchar(app_dir))
 
@@ -9,6 +10,11 @@ test_that("the Shiny server logic generates, browses and administers items", {
     session$setInputs(shape = "dice", rule = "addition", n = 3, seed = "1",
                       n_options = 4)
     session$setInputs(generate = 1)
+    for (k in 1:300) { # the worker is a background R process; poll like the app does
+      if (!is.null(items())) break
+      Sys.sleep(0.2)
+      session$elapse(400)
+    }
     expect_s3_class(items(), "cog_item_set")
     expect_equal(length(items()), 3)
     expect_true(grepl("Items", output$summary$html))

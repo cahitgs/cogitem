@@ -12,7 +12,8 @@ generate_items(
   n_options = 4,
   max_attempts = NULL,
   perceptual = FALSE,
-  perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD
+  perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
+  progress = NULL
 )
 }
 \arguments{
@@ -39,6 +40,12 @@ graphics stack.}
 
 \item{perceptual_threshold}{Distance below which two renderings count as
 confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
+
+\item{progress}{Optional function called after every accepted item and at
+least every 25 attempts with three arguments: the number of items
+generated so far, the number requested and the number of attempts. Return
+\code{FALSE} from it to stop early; the items produced so far are returned and
+\code{meta$stopped} is \code{TRUE}. The function must not draw random numbers.}
 }
 \value{
 An object of class \code{cog_item_set}: a list of \code{cog_item} objects

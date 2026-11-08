@@ -24,7 +24,9 @@ one, log the chosen option, response time and the hover trace of every
 option, and download the results as CSV) and \emph{About}.
 }
 \details{
-Requires the suggested packages \strong{shiny} and \strong{bslib}.
+Requires the suggested packages \strong{shiny} and \strong{bslib}. With \strong{callr}
+installed, generation runs in a background R process: the sidebar shows
+progress and a \emph{Stop} button that keeps the items produced so far.
 }
 \examples{
 if (interactive()) {

@@ -12,6 +12,43 @@ rule_choices_all <- stats::setNames(rules, cogitem::rule_labels()[rules])
 THUMBS_PER_PAGE <- 12
 MAX_OPTIONS <- 8
 BASE_FONT <- "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+PKG_ROOT <- local({
+  # under pkgload the shimmed system.file() may return inst/; use the source root
+  root <- system.file(package = "cogitem")
+  if (basename(root) == "inst" && file.exists(file.path(dirname(root), "DESCRIPTION"))) dirname(root) else root
+})
+
+# Runs in a background R process (callr::r_bg). `root` is either an installed
+# library entry (has Meta/) or the package source directory under pkgload.
+generate_worker <- function(root, args, progress_file, stop_file) {
+  if (dir.exists(file.path(root, "Meta"))) {
+    loadNamespace("cogitem", lib.loc = c(dirname(root), .libPaths()))
+  } else {
+    pkgload::load_all(root, quiet = TRUE)
+  }
+  warnings <- character(0)
+  progress <- function(done, n, attempts) {
+    writeLines(sprintf("%d %d %d", done, n, attempts), progress_file)
+    !file.exists(stop_file)
+  }
+  items <- withCallingHandlers(
+    cogitem::generate_items(args$shape, args$rule, n = args$n, seed = args$seed,
+                            n_options = args$n_options, perceptual = args$perceptual,
+                            progress = progress),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+  list(items = items, warnings = warnings)
+}
+
+read_progress <- function(file) {
+  if (!file.exists(file)) return(NULL)
+  v <- suppressWarnings(tryCatch(scan(file, what = integer(), quiet = TRUE),
+                                 error = function(e) NULL))
+  if (length(v) != 3 || anyNA(v)) return(NULL)
+  list(done = v[1], n = v[2], attempts = v[3])
+}
 
 app_theme <- bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
                       secondary = "#e4e4e7", success = "#047857", danger = "#b91c1c",
@@ -67,7 +104,9 @@ ui <- page_navbar(
         textInput("seed", "Seed (blank = random)", ""),
         sliderInput("n_options", "Response options", min = 2, max = 8, value = 4, step = 1),
         checkboxInput("perceptual", "Perceptual audit (drop ambiguous items; slower)", TRUE),
-        actionButton("generate", "Generate", class = "btn-primary w-100"),
+        conditionalPanel("output.generating != 'yes'",
+                         actionButton("generate", "Generate", class = "btn-primary w-100")),
+        conditionalPanel("output.generating == 'yes'", uiOutput("generate_progress")),
         hr(),
         uiOutput("downloads")
       ),
@@ -141,28 +180,104 @@ server <- function(input, output, session) {
                       selected = sel)
   })
 
-  observeEvent(input$generate, {
+  # Generation runs in a background R process so that the UI stays responsive,
+  # shows progress and can be stopped early (the items produced so far are kept).
+  gen <- reactiveValues(proc = NULL, files = NULL, status = NULL, stop_requested = NULL)
+  accept_items <- function(res) {
+    if (is.null(res) || length(res) == 0) {
+      showNotification("No items were generated.", type = "warning")
+      return(invisible())
+    }
+    items(res)
+    page(1L)
+    reset_admin()
+  }
+  generation_args <- function() {
     seed <- suppressWarnings(as.integer(input$seed))
-    if (is.na(seed)) seed <- NULL
-    gen <- function() {
-      cogitem::generate_items(input$shape, input$rule, n = input$n, seed = seed,
-                              n_options = input$n_options,
-                              perceptual = isTRUE(input$perceptual))
+    list(shape = input$shape, rule = input$rule, n = as.integer(input$n),
+         seed = if (is.na(seed)) NULL else seed, n_options = as.integer(input$n_options),
+         perceptual = isTRUE(input$perceptual))
+  }
+
+  observeEvent(input$generate, {
+    if (!is.null(gen$proc)) return()
+    args <- generation_args()
+    if (!requireNamespace("callr", quietly = TRUE)) {
+      # synchronous fallback (no Stop button)
+      withProgress(message = "Generating items...", value = 0.3, {
+        res <- tryCatch(
+          withCallingHandlers(do.call(cogitem::generate_items, args), warning = function(w) {
+            showNotification(conditionMessage(w), type = "warning", duration = 8)
+            invokeRestart("muffleWarning")
+          }),
+          error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL }
+        )
+      })
+      accept_items(res)
+      return()
     }
-    withProgress(message = "Generating items...", value = 0.3, {
-      res <- tryCatch(
-        withCallingHandlers(gen(), warning = function(w) {
-          showNotification(conditionMessage(w), type = "warning", duration = 8)
-          invokeRestart("muffleWarning")
-        }),
-        error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL }
-      )
+    files <- list(progress = tempfile("cogitem-progress-"), stop = tempfile("cogitem-stop-"))
+    gen$files <- files
+    gen$status <- list(done = 0L, n = args$n, attempts = 0L)
+    gen$stop_requested <- NULL
+    gen$proc <- callr::r_bg(generate_worker,
+                            args = list(root = PKG_ROOT, args = args,
+                                        progress_file = files$progress, stop_file = files$stop),
+                            supervise = TRUE)
+  })
+
+  observeEvent(input$cancel_generate, {
+    req(gen$proc)
+    file.create(gen$files$stop)
+    gen$stop_requested <- Sys.time()
+  })
+
+  observe({
+    p <- gen$proc
+    if (is.null(p)) return()
+    invalidateLater(400)
+    st <- read_progress(isolate(gen$files$progress))
+    if (!is.null(st)) gen$status <- st
+    if (p$is_alive()) {
+      asked <- isolate(gen$stop_requested)
+      if (!is.null(asked) && as.numeric(difftime(Sys.time(), asked, units = "secs")) > 10) {
+        p$kill()
+        gen$proc <- NULL
+        showNotification("Generation aborted.", type = "warning")
+      }
+      return()
+    }
+    gen$proc <- NULL
+    res <- tryCatch(p$get_result(), error = function(e) {
+      showNotification(conditionMessage(e), type = "error")
+      NULL
     })
-    if (!is.null(res)) {
-      items(res)
-      page(1L)
-      reset_admin()
-    }
+    unlink(unlist(isolate(gen$files)))
+    if (is.null(res)) return()
+    for (w in res$warnings) showNotification(w, type = "warning", duration = 8)
+    accept_items(res$items)
+  })
+
+  session$onSessionEnded(function() {
+    p <- isolate(gen$proc)
+    if (!is.null(p) && p$is_alive()) p$kill()
+  })
+
+  output$generating <- renderText(if (is.null(gen$proc)) "no" else "yes")
+  outputOptions(output, "generating", suspendWhenHidden = FALSE)
+  output$generate_progress <- renderUI({
+    st <- gen$status
+    req(st)
+    pct <- if (st$n > 0) min(100, round(100 * st$done / st$n)) else 0
+    tagList(
+      div(class = "cog-muted small mb-1",
+          sprintf("Generating %d / %d (%d attempts)", st$done, st$n, st$attempts)),
+      div(class = "progress mb-2", style = "height: 8px;",
+          div(class = "progress-bar", role = "progressbar", style = sprintf("width: %d%%;", pct))),
+      actionButton("cancel_generate",
+                   if (is.null(gen$stop_requested)) "Stop and keep items so far" else "Stopping...",
+                   class = "btn-outline-danger w-100")
+    )
   })
 
   observeEvent(input$upload, {
@@ -193,7 +308,9 @@ server <- function(input, output, session) {
     }
     layout_columns(
       col_widths = c(3, 3, 3, 3),
-      value_box("Items", length(x), theme = "primary"),
+      value_box("Items", length(x),
+                if (isTRUE(m$stopped)) sprintf("stopped early (%d requested)", m$n_requested),
+                theme = "primary"),
       value_box("Seed", format(m$seed %||% NA), theme = "secondary"),
       third,
       value_box("Mean difficulty", if (nrow(f)) sprintf("%.2f", mean(f$difficulty)) else "-",

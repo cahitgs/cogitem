@@ -93,6 +93,11 @@ new_item_set <- function(items, meta = list()) {
 #' @param n_options Number of response options (2-8, default 4). One option
 #'   is correct; the rest are distractors.
 #' @param max_attempts Maximum number of generation attempts before giving up.
+#' @param progress Optional function called after every accepted item and at
+#'   least every 25 attempts with three arguments: the number of items
+#'   generated so far, the number requested and the number of attempts. Return
+#'   `FALSE` from it to stop early; the items produced so far are returned and
+#'   `meta$stopped` is `TRUE`. The function must not draw random numbers.
 #' @param perceptual Also run the renderer-based [audit_item()] on every
 #'   candidate and discard items whose options or cells are perceptually
 #'   confusable. Slower (each item is rasterised) and needs **ragg** or a
@@ -113,7 +118,8 @@ new_item_set <- function(items, meta = list()) {
 #' @export
 generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
                            max_attempts = NULL, perceptual = FALSE,
-                           perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD) {
+                           perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
+                           progress = NULL) {
   shape <- match.arg(shape, SHAPES)
   rule <- match.arg(rule, RULES)
   if (!is_supported(shape, rule)) {
@@ -125,6 +131,11 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
   n_options <- as.integer(n_options)
   seed <- as.integer(seed %||% random_seed())
   max_attempts <- as.integer(max_attempts %||% max(100, n * 8))
+  if (!is.null(progress)) stopifnot(is.function(progress))
+  report <- function(done, attempts) {
+    if (is.null(progress)) return(TRUE)
+    !isFALSE(progress(done, n, attempts))
+  }
 
   res <- with_seed(seed, {
     items <- vector("list", n)
@@ -136,7 +147,12 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
     ambiguous <- 0L
     consecutive_dup <- 0L
     last_error <- NULL
+    stopped <- FALSE
     while (n_items < n && attempts < max_attempts) {
+      if (attempts %% 25L == 0L && !report(n_items, attempts)) {
+        stopped <- TRUE
+        break
+      }
       attempts <- attempts + 1L
       p <- tryCatch(generate_one(shape, rule, n_options), error = function(e) {
         last_error <<- conditionMessage(e)
@@ -161,13 +177,17 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
       n_items <- n_items + 1L
       items[[n_items]] <- p
       consecutive_dup <- 0L
+      if (!report(n_items, attempts)) {
+        stopped <- TRUE
+        break
+      }
     }
     list(items = items[seq_len(n_items)], attempts = attempts,
          duplicates = duplicates, invalid = invalid, ambiguous = ambiguous,
-         last_error = last_error)
+         last_error = last_error, stopped = stopped)
   })
 
-  if (length(res$items) < n) {
+  if (length(res$items) < n && !res$stopped) {
     msg <- sprintf("Only %d of %d requested %s/%s items could be generated (%d attempts, %d duplicates, %d invalid, %d perceptually ambiguous).",
                    length(res$items), n, shape, rule, res$attempts, res$duplicates,
                    res$invalid, res$ambiguous)
@@ -183,7 +203,8 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
     invalid_skipped = res$invalid, perceptual = perceptual,
     perceptual_threshold = if (perceptual) perceptual_threshold else NA_real_,
     perceptual_skipped = res$ambiguous, attempts = res$attempts,
-    reached_ceiling = length(res$items) < n
+    stopped = res$stopped,
+    reached_ceiling = length(res$items) < n && !res$stopped
   ))
 }
 

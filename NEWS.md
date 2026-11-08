@@ -26,4 +26,7 @@
 * JSON interchange with the web application (`write_items_json()`,
   `read_items_json()`).
 * Shiny application for generation, browsing and computerised administration
-  with response-time and hover logging (`run_app()`).
+  with response-time and hover logging (`run_app()`). Generation runs in a
+  background R process (**callr**) with a progress bar and a Stop button
+  that keeps the items produced so far; `generate_items(progress = )`
+  exposes the same hook.

@@ -118,7 +118,9 @@ rule, n, seed, option count; gallery preview; JSON, feature-CSV and PDF
 booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, logging the chosen option,
 response time and the hover trace of every option, with CSV export) and
-**About**.
+**About**. With **callr** installed, generation runs in a background R
+process with a progress bar and a *Stop* button that keeps the items produced
+so far.
 
 ## Related software
 

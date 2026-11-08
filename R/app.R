@@ -7,7 +7,9 @@
 #' one, log the chosen option, response time and the hover trace of every
 #' option, and download the results as CSV) and *About*.
 #'
-#' Requires the suggested packages **shiny** and **bslib**.
+#' Requires the suggested packages **shiny** and **bslib**. With **callr**
+#' installed, generation runs in a background R process: the sidebar shows
+#' progress and a *Stop* button that keeps the items produced so far.
 #'
 #' @param items Optional `cog_item_set` to pre-load into the application.
 #' @param ... Passed to [shiny::runApp()], for example `port` or

@@ -78,3 +78,26 @@ test_that("hand-made items can be constructed and validated", {
                   correct = 1, rule = "identity", shape = "polygon")
   expect_false(is_item_valid(bad))
 })
+test_that("the progress callback reports and can stop generation early", {
+  calls <- list()
+  set <- generate_items("dice", "dist-of-3", n = 6, seed = 5,
+                        progress = function(done, n, attempts) {
+                          calls[[length(calls) + 1]] <<- c(done, n, attempts)
+                          TRUE
+                        })
+  expect_equal(length(set), 6)
+  expect_true(length(calls) >= 6)
+  expect_equal(calls[[length(calls)]][1:2], c(6, 6))
+  expect_false(attr(set, "meta")$stopped)
+  # the callback does not touch the random stream
+  full <- generate_items("dice", "dist-of-3", n = 6, seed = 5)
+  cells <- function(x) lapply(unclass(x), function(it) list(it$cells, it$options))
+  expect_identical(cells(set), cells(full))
+  part <- expect_silent(generate_items("dice", "dist-of-3", n = 6, seed = 5,
+                                       progress = function(done, n, attempts) done < 3))
+  expect_equal(length(part), 3)
+  expect_true(attr(part, "meta")$stopped)
+  expect_false(attr(part, "meta")$reached_ceiling)
+  expect_identical(cells(part), cells(full)[1:3])
+})
+
