@@ -14,6 +14,17 @@
   different. Symbolic checks additionally reject imperceptible count or
   single-cell checkerboard differences between cells of the same row or
   column.
+* `is_item_valid()` also verifies that the matrix instantiates its rule
+  (identity, Latin square, progression axes, rotation steps, mirror,
+  `a op b = c` for the arithmetic and bitwise rules), so hand-made items are
+  checked too. Attributes a carrier does not draw (the fill of checkerboards,
+  bars, sector pies and block letters, the stroke width of unfilled dot
+  grids) are ignored by `visual_signature()` and never used for distractors.
+* `q_matrix()` uses explicit indicator coding (one column per level, a
+  missing attribute is 0), so it also works for single-level factors and
+  rule-specific features; the perceptual audit falls back to the **png**
+  package when **ragg** is not installed; the Shiny administration accepts
+  exactly one answer per item (late clicks are ignored).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
 * Two-layer items (`generate_layered()`, `layer_shapes()`, `layer_rules()`):

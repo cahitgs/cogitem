@@ -62,8 +62,10 @@ candidate_perturbations <- function(correct) {
   # Tier 4: count +/- 2
   out <- c(out, param_tweaks(correct, 2, "count2"))
 
-  # Tier 5: fill toggle
-  if (is.na(correct$fill)) {
+  # Tier 5: fill toggle (only for carriers that draw their fill)
+  if (!attribute_visible(correct, "fill")) {
+    # nothing to toggle
+  } else if (is.na(correct$fill)) {
     out[[length(out) + 1]] <- tag_tier(shape_set(correct, fill = DISTRACTOR_FILL), "fill")
   } else {
     out[[length(out) + 1]] <- tag_tier(shape_set(correct, fill = NA_character_), "fill")
@@ -79,10 +81,12 @@ candidate_perturbations <- function(correct) {
     }
   }
 
-  # Tier 7: stroke width (subtlest)
-  out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = correct$strokeWidth + 3), "strokeWidth")
-  if (correct$strokeWidth > 2) {
-    out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = max(1, correct$strokeWidth - 1)), "strokeWidth")
+  # Tier 7: stroke width (subtlest; skipped when the carrier draws no outline)
+  if (attribute_visible(correct, "strokeWidth")) {
+    out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = correct$strokeWidth + 3), "strokeWidth")
+    if (correct$strokeWidth > 2) {
+      out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = max(1, correct$strokeWidth - 1)), "strokeWidth")
+    }
   }
 
   out

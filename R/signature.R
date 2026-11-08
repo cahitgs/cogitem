@@ -1,3 +1,19 @@
+# Attributes a shape family actually draws. Perturbing an attribute the
+# renderer ignores (the fill of a checkerboard, the stroke width of unfilled
+# dots) would create a nominally different but identical-looking option, so
+# such attributes are normalised away here and skipped by the distractor
+# generator.
+FILL_IGNORED_SHAPES <- c("checkerboard", "bars", "sector-pie", "block-letter")
+
+attribute_visible <- function(s, what) {
+  switch(
+    what,
+    fill = !(s$kind %in% FILL_IGNORED_SHAPES),
+    strokeWidth = !(s$kind == "grid-dots" && (is.null(s$fill) || is.na(s$fill))),
+    TRUE
+  )
+}
+
 #' Visual signature of a shape configuration
 #'
 #' Two configurations that produce the same picture for a human observer get
@@ -24,10 +40,11 @@ visual_signature <- function(s) {
                    collapse = ",")
   fold <- rotation_symmetry_fold(s)
   eff_rot <- if (fold >= 360) 0 else round(s$rotation %% (360 / fold))
-  fill <- if (is.null(s$fill) || is.na(s$fill)) "none" else s$fill
+  fill <- if (is.null(s$fill) || is.na(s$fill) || !attribute_visible(s, "fill")) "none" else s$fill
+  sw <- if (attribute_visible(s, "strokeWidth")) fmt_num(s$strokeWidth) else "NA"
   sprintf("%s(sz=%s,rot=%s,sw=%s,stk=%s,fill=%s,%s)",
           s$kind, fmt_num(round2(s$size)), fmt_num(eff_rot),
-          fmt_num(s$strokeWidth), s$stroke, fill, params)
+          sw, s$stroke, fill, params)
 }
 
 fmt_num <- function(x) {

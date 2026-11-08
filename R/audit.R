@@ -23,30 +23,55 @@ render_tiles <- function(shapes, px) {
     }
     popViewport()
   }
-  if (requireNamespace("ragg", quietly = TRUE)) {
+  engine <- getOption("cogitem.raster", "auto")
+  if (engine == "auto") {
+    engine <- if (requireNamespace("ragg", quietly = TRUE)) {
+      "ragg"
+    } else if (requireNamespace("png", quietly = TRUE)) {
+      "png"
+    } else {
+      stop("The perceptual audit needs the 'ragg' package (or 'png' as a fallback): ",
+           "install.packages('ragg')", call. = FALSE)
+    }
+  }
+  if (engine == "ragg") {
     cap <- ragg::agg_capture(width = px * ncol, height = px * nrow, units = "px",
                              background = PALETTE$cell, res = 72)
     on.exit(grDevices::dev.off(), add = TRUE)
     draw_all()
     img <- cap(native = FALSE)
-  } else if (isTRUE(capabilities("cairo"))) {
+    rgb <- grDevices::col2rgb(img) / 255
+    full <- array(t(rgb), dim = c(nrow(img), ncol(img), 3))
+  } else if (engine == "png") {
+    # dev.capture() is not available for file devices: draw to a PNG file and
+    # read it back
     f <- tempfile(fileext = ".png")
     on.exit(unlink(f), add = TRUE)
-    grDevices::png(f, width = px * ncol, height = px * nrow, bg = PALETTE$cell, type = "cairo")
-    on.exit(grDevices::dev.off(), add = TRUE, after = FALSE)
+    args <- list(f, width = px * ncol, height = px * nrow, bg = PALETTE$cell, res = 72)
+    if (isTRUE(capabilities("cairo"))) args$type <- "cairo"
+    do.call(grDevices::png, args)
+    open <- TRUE
+    on.exit(if (open) grDevices::dev.off(), add = TRUE)
     draw_all()
-    img <- grDevices::dev.capture(native = FALSE)
+    grDevices::dev.off()
+    open <- FALSE
+    full <- to_rgb_array(png::readPNG(f))
   } else {
-    stop("The perceptual audit needs the 'ragg' package or a cairo-capable R build.",
-         call. = FALSE)
+    stop(sprintf("Unknown raster engine '%s' (option cogitem.raster)", engine), call. = FALSE)
   }
-  rgb <- grDevices::col2rgb(img) / 255
-  full <- array(t(rgb), dim = c(nrow(img), ncol(img), 3))
   lapply(seq_len(k), function(i) {
     r <- (i - 1) %/% ncol
     c <- (i - 1) %% ncol
     full[(r * px + 1):((r + 1) * px), (c * px + 1):((c + 1) * px), , drop = FALSE]
   })
+}
+
+# Grey, grey+alpha, RGB or RGBA array from png::readPNG() -> h x w x 3.
+to_rgb_array <- function(arr) {
+  d <- dim(arr)
+  if (length(d) == 2) return(array(arr, dim = c(d, 3)))
+  if (d[3] == 2) return(array(arr[, , 1], dim = c(d[1:2], 3)))
+  arr[, , 1:3, drop = FALSE]
 }
 
 # Vectorised sRGB (0-1, N x 3) -> CIELAB (D65); L in 0-100, a/b about -128..128.
@@ -128,7 +153,8 @@ tile_distance <- function(a, b) {
 #' spikes, 7 vs 8 sides) are handled by the symbolic rules of
 #' [is_item_valid()] rather than by this metric.
 #'
-#' Requires the **ragg** package or a cairo-capable R build.
+#' Requires the **ragg** package or, as a fallback, the **png** package
+#' (the engine can be forced with `options(cogitem.raster = "png")`).
 #'
 #' @param a,b [cog_shape()] objects.
 #' @param px Raster size in pixels (the rendered cell is `px` x `px`).

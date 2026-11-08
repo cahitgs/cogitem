@@ -45,3 +45,23 @@ test_that("blank cell sentinel is recognised", {
   expect_true(cogitem:::is_blank_cell(cogitem:::blank_cell()))
   expect_false(cogitem:::is_blank_cell(cog_shape("annulus")))
 })
+test_that("attributes a carrier does not draw never distinguish options", {
+  a <- cog_shape("checkerboard", list(rows = 3, cols = 2, pattern = 35))
+  b <- cog_shape("checkerboard", list(rows = 3, cols = 2, pattern = 35), fill = "#000000")
+  expect_identical(visual_signature(a), visual_signature(b))
+  g <- cog_shape("grid-dots", list(rows = 2, cols = 2), strokeWidth = 2)
+  g_thick <- cog_shape("grid-dots", list(rows = 2, cols = 2), strokeWidth = 6)
+  expect_identical(visual_signature(g), visual_signature(g_thick))
+  gf <- cog_shape("grid-dots", list(rows = 2, cols = 2), strokeWidth = 2, fill = "#ffffff")
+  gf_thick <- cog_shape("grid-dots", list(rows = 2, cols = 2), strokeWidth = 6, fill = "#ffffff")
+  expect_false(identical(visual_signature(gf), visual_signature(gf_thick)))
+  p <- cog_shape("polygon", list(sides = 5))
+  expect_false(identical(visual_signature(p), visual_signature(cog_shape("polygon", list(sides = 5), fill = "#000000"))))
+  # the reported case: six options of a checkerboard identity item
+  it <- generate_item("checkerboard", "identity", seed = 1, n_options = 6)
+  expect_false(any(it$meta$distractor_tiers == "fill"))
+  expect_equal(anyDuplicated(vapply(it$options, visual_signature, "")), 0)
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  expect_gt(audit_item(it)$min_option_distance, 0.1)
+})
+

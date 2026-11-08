@@ -100,3 +100,39 @@ test_that("the progress callback reports and can stop generation early", {
   expect_identical(cells(part), cells(full)[1:3])
 })
 
+test_that("is_item_valid() verifies the rule relation itself", {
+  break_cell <- function(it, r, c, fun) { it$cells[[r]][[c]] <- fun(it$cells[[r]][[c]]); it }
+  add <- generate_item("dice", "addition", seed = 3)
+  expect_true(is_item_valid(add))
+  wrong_sum <- break_cell(add, 1, 3, function(s) { s$params$dotCount <- s$params$dotCount %% 9 + 1; s })
+  expect_false(is_item_valid(wrong_sum))
+  # a hand-made 1 + 2 = 4 matrix is rejected
+  cells <- add$cells
+  for (r in 1:3) for (c in 1:3) cells[[r]][[c]]$params$dotCount <- c(1, 2, 4)[c]
+  hand <- cog_item(cells, options = list(cells[[3]][[3]], cells[[1]][[1]], cells[[1]][[2]],
+                                         cog_shape("dice", list(dotCount = 3))),
+                   correct = 1, rule = "addition", shape = "dice")
+  expect_false(is_item_valid(hand))
+  xor <- generate_item("checkerboard", "xor", seed = 2)
+  expect_true(is_item_valid(xor))
+  expect_false(is_item_valid(break_cell(xor, 2, 3, function(s) { s$params$pattern <- bitwXor(as.integer(s$params$pattern), 1L); s })))
+  ident <- generate_item("star", "identity", seed = 4)
+  expect_false(is_item_valid(break_cell(ident, 1, 2, function(s) { s$params$points <- s$params$points + 1; s })))
+  d3 <- generate_item("petals", "dist-of-3", seed = 5)
+  expect_false(is_item_valid(break_cell(d3, 2, 1, function(s) d3$cells[[1]][[1]])))
+  rot <- generate_item("arrow", "rotation", seed = 6)
+  expect_false(is_item_valid(break_cell(rot, 1, 2, function(s) { s$rotation <- (s$rotation + 30) %% 360; s })))
+  mir <- generate_item("hammer", "mirror", seed = 7)
+  expect_false(is_item_valid(break_cell(mir, 3, 1, function(s) { s$rotation <- (s$rotation + 90) %% 360; s })))
+  prog <- generate_item("bars", "progression", seed = 8)
+  expect_true(is_item_valid(prog))
+  swapped <- prog
+  swapped$cells[[1]][[1]] <- prog$cells[[1]][[2]]
+  swapped$cells[[1]][[2]] <- prog$cells[[1]][[1]]
+  expect_false(is_item_valid(swapped))
+  lay <- generate_layered(c("polygon", "progression"), c("dice", "addition"), n = 1, seed = 9)[[1]]
+  expect_true(is_item_valid(lay))
+  lay$cells[[1]][[3]]$layers[[2]]$params$dotCount <- lay$cells[[1]][[3]]$layers[[2]]$params$dotCount %% 9 + 1
+  expect_false(is_item_valid(lay))
+})
+

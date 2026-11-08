@@ -21,9 +21,13 @@ small count (for example 15 versus 16 spikes) or by a single cell of a
 large checkerboard, (c) no two differing cells of the same row (and, for
 rules that also run down the columns, of the same column) differ only by
 an imperceptibly small count, (d) the keyed option reproduces the missing
-cell and (e) the rule is visible in the matrix (three distinct cells in
-the first row of a distribution item, both axes visible in a progression
-item, and so on). \code{\link[=generate_items]{generate_items()}} discards items that fail this check.
+cell, (e) the rule is visible in the matrix (three distinct cells in every
+row of a distribution item, both axes visible in a progression item) and
+(f) the rule relation itself holds: identical cells for identity, a Latin
+square for distribution of three, ordered axes for progression, constant
+steps for rotation, the flipped row or column for mirror and \verb{a op b = c}
+in every row for the arithmetic and bitwise rules, so hand-made items are
+verified too. \code{\link[=generate_items]{generate_items()}} discards items that fail this check.
 These rules are symbolic; the renderer-based \code{\link[=audit_items]{audit_items()}} complements
 them.
 }

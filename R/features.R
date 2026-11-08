@@ -92,27 +92,58 @@ item_features <- function(x) {
 
 #' Q-matrix of item design features
 #'
-#' Builds a design matrix (items x features) from [item_features()] with
-#' [stats::model.matrix()]. The default formula codes rule and shape as dummy
-#' variables; any combination of feature columns can be used, for example
-#' `~ rule_family + n_options`. The result can be passed to
-#' LLTM software such as `eRm::LLTM()` (after dropping the intercept) or used
-#' as item covariates in `lme4::glmer()` / `TAM`.
+#' Builds a design matrix (items x features) from [item_features()]. Every
+#' character feature in the formula is expanded into one 0/1 column per
+#' observed level, with no reference level dropped, as is usual for a
+#' Q-matrix; numeric and logical features are kept as they are. A missing
+#' feature value means that the attribute does not apply to the item and is
+#' coded 0. Only additive formulas are supported. Note that the indicator
+#' columns of two complete factors are linearly dependent (both sum to one
+#' in every row): drop one column per additional factor, or use a single
+#' factor, when the estimation software needs full column rank, as
+#' `eRm::LLTM()` does; `lme4::glmer()` and `TAM` accept the columns as item
+#' covariates.
 #'
 #' @param x A `cog_item_set` (or anything accepted by [item_features()]).
-#' @param formula A one-sided formula over the columns of [item_features()].
-#' @param intercept Keep the intercept column?
+#' @param formula A one-sided additive formula over the columns of
+#'   [item_features()].
+#' @param intercept Add a column of ones?
 #' @return A numeric matrix with item ids as row names.
 #' @examples
 #' items <- generate_mixed(subset(supported_combinations(), shape == "dice"),
 #'                         n_each = 1, seed = 5)
 #' Q <- q_matrix(items, ~ rule)
 #' dim(Q)
+#' q_matrix(items, ~ rule_family + n_options)[1:3, ]
 #' @export
 q_matrix <- function(x, formula = ~ rule + shape, intercept = FALSE) {
   f <- item_features(x)
-  mm <- stats::model.matrix(formula, data = f)
-  if (!intercept) mm <- mm[, colnames(mm) != "(Intercept)", drop = FALSE]
+  tt <- stats::terms(formula)
+  if (length(attr(tt, "order")) && any(attr(tt, "order") > 1)) {
+    stop("q_matrix() supports additive formulas only (no interactions)", call. = FALSE)
+  }
+  vars <- attr(tt, "term.labels")
+  unknown <- setdiff(vars, names(f))
+  if (length(unknown)) {
+    stop("Unknown feature(s): ", paste(unknown, collapse = ", "),
+         ". See names(item_features(x)).", call. = FALSE)
+  }
+  cols <- list()
+  if (intercept) cols[["(Intercept)"]] <- rep(1, nrow(f))
+  for (v in vars) {
+    val <- f[[v]]
+    if (is.numeric(val) || is.logical(val)) {
+      val <- as.numeric(val)
+      val[is.na(val)] <- 0
+      cols[[v]] <- val
+    } else {
+      val <- as.character(val)
+      for (lv in sort(unique(val[!is.na(val)]))) {
+        cols[[paste0(v, lv)]] <- as.numeric(!is.na(val) & val == lv)
+      }
+    }
+  }
+  mm <- if (length(cols)) do.call(cbind, cols) else matrix(numeric(0), nrow = nrow(f), ncol = 0)
   rownames(mm) <- f$id
   mm
 }

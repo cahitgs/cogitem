@@ -58,3 +58,17 @@ test_that("generate_items(perceptual = TRUE) records the audit in meta", {
   expect_true(is.numeric(m$perceptual_skipped))
   expect_false(any(audit_items(set)$flagged))
 })
+test_that("the png fallback renderer gives usable distances", {
+  skip_if_not_installed("png")
+  old <- options(cogitem.raster = "png")
+  on.exit(options(old), add = TRUE)
+  a <- cog_shape("dice", list(dotCount = 3), size = 0.65)
+  b <- cog_shape("dice", list(dotCount = 3), size = 0.95)
+  expect_equal(perceptual_distance(a, a), 0)
+  expect_gt(perceptual_distance(a, b), 0.15)
+  it <- generate_item("checkerboard", "xor", seed = 2)
+  expect_false(audit_item(it)$flagged)
+  options(cogitem.raster = "nonsense")
+  expect_error(perceptual_distance(a, b), "raster engine")
+})
+

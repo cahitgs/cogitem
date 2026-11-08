@@ -38,7 +38,8 @@ confusable} when the distance falls below 0.15 (the default \code{threshold} of
 spikes, 7 vs 8 sides) are handled by the symbolic rules of
 \code{\link[=is_item_valid]{is_item_valid()}} rather than by this metric.
 
-Requires the \strong{ragg} package or a cairo-capable R build.
+Requires the \strong{ragg} package or, as a fallback, the \strong{png} package
+(the engine can be forced with \code{options(cogitem.raster = "png")}).
 }
 \examples{
 \donttest{

@@ -91,21 +91,27 @@ css <- "
 "
 
 js <- "
-window.cogStart = Date.now(); window.cogHovers = [];
+window.cogStart = Date.now(); window.cogHovers = []; window.cogItem = 0; window.cogLocked = false;
 Shiny.addCustomMessageHandler('cog-item-start', function(m) {
   window.cogStart = Date.now(); window.cogHovers = [];
+  window.cogItem = m.item; window.cogLocked = false;
 });
 function cogHover(i) {
   if (!window.cogHovers) window.cogHovers = [];
   window.cogHovers.push({i: i, t: Date.now() - window.cogStart});
 }
+// One answer per item: the first click locks the options until the server
+// starts the next item, and every event names the item it belongs to.
 function cogPick(i, enabled) {
-  if (!enabled) return;
-  Shiny.setInputValue('admin_pick', {i: i, rt: Date.now() - window.cogStart,
+  if (!enabled || window.cogLocked) return;
+  window.cogLocked = true;
+  Shiny.setInputValue('admin_pick', {i: i, item: window.cogItem, rt: Date.now() - window.cogStart,
     hovers: window.cogHovers || []}, {priority: 'event'});
 }
 function cogSkip() {
-  Shiny.setInputValue('admin_skip', {rt: Date.now() - window.cogStart,
+  if (window.cogLocked) return;
+  window.cogLocked = true;
+  Shiny.setInputValue('admin_skip', {item: window.cogItem, rt: Date.now() - window.cogStart,
     hovers: window.cogHovers || []}, {priority: 'event'});
 }
 "
@@ -483,7 +489,7 @@ server <- function(input, output, session) {
     admin$state <- "playing"
     admin$picked <- NULL
     admin$log <- list()
-    session$sendCustomMessage("cog-item-start", list())
+    session$sendCustomMessage("cog-item-start", list(item = admin$pos))
   })
 
   current_item <- reactive({
@@ -525,20 +531,21 @@ server <- function(input, output, session) {
       admin$pos <- admin$pos + 1L
       admin$picked <- NULL
       admin$state <- "playing"
-      session$sendCustomMessage("cog-item-start", list())
+      session$sendCustomMessage("cog-item-start", list(item = admin$pos))
     }
   }
 
   observeEvent(input$admin_pick, {
-    req(admin$state == "playing")
     p <- input$admin_pick
+    # a late click that belongs to a previous item is ignored
+    req(admin$state == "playing", identical(as.integer(p$item), admin$pos))
     record(as.integer(p$i), p$rt, p$hovers)
     admin$picked <- as.integer(p$i)
     if (isTRUE(input$feedback)) admin$state <- "feedback" else advance()
   })
   observeEvent(input$admin_skip, {
-    req(admin$state == "playing")
     p <- input$admin_skip
+    req(admin$state == "playing", identical(as.integer(p$item), admin$pos))
     record(NA, p$rt, p$hovers)
     advance()
   })

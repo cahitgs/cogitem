@@ -25,3 +25,22 @@ test_that("item sets persist with saveRDS/readRDS", {
   expect_true(all(vapply(back, is_item_valid, TRUE)))
 })
 
+test_that("q_matrix() codes indicators explicitly and copes with constant or missing features", {
+  single <- generate_items("petals", "dist-of-3", n = 3, seed = 2)
+  Q <- q_matrix(single, ~ rule + shape)
+  expect_equal(dim(Q), c(3, 2))
+  expect_identical(colnames(Q), c("ruledist-of-3", "shapepetals"))
+  expect_identical(rownames(Q), vapply(single, function(it) it$id, ""))
+  expect_true(all(Q == 1))
+  mixed <- generate_mixed(subset(supported_combinations(), shape == "dice"), n_each = 1, seed = 5)
+  Qs <- q_matrix(mixed, ~ step)
+  expect_equal(dim(Qs), c(length(mixed), 1))
+  f <- item_features(mixed)
+  expect_equal(unname(Qs[, "step"]), ifelse(is.na(f$step), 0, f$step))
+  Qr <- q_matrix(mixed, ~ rule + n_options, intercept = TRUE)
+  expect_equal(colnames(Qr)[1], "(Intercept)")
+  expect_true(all(rowSums(Qr[, grepl("^rule", colnames(Qr)), drop = FALSE]) == 1))
+  expect_error(q_matrix(mixed, ~ rule:shape), "additive")
+  expect_error(q_matrix(mixed, ~ nonsense), "Unknown feature")
+})
+

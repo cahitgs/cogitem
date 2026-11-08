@@ -29,7 +29,7 @@ test_that("the Shiny server logic generates, browses and administers items", {
                       max_items = 0, start = 1)
     expect_equal(admin$state, "playing")
     first <- items()[[1]]
-    session$setInputs(admin_pick = list(i = first$correct, rt = 1200,
+    session$setInputs(admin_pick = list(i = first$correct, item = 1, rt = 1200,
                                         hovers = list(list(i = 1, t = 100), list(i = 2, t = 400))))
     expect_equal(admin$state, "feedback")
     expect_equal(length(admin$log), 1)
@@ -37,12 +37,12 @@ test_that("the Shiny server logic generates, browses and administers items", {
     expect_equal(admin$log[[1]]$hover_trace, "1@0;2@300")
     session$setInputs(admin_next = 1)
     expect_equal(admin$pos, 2)
-    session$setInputs(admin_skip = list(rt = 800, hovers = list()))
+    session$setInputs(admin_skip = list(item = 2, rt = 800, hovers = list()))
     expect_equal(admin$pos, 3)
     expect_true(admin$log[[2]]$skipped)
     third <- items()[[3]]
     wrong <- if (third$correct == 1) 2 else 1
-    session$setInputs(admin_pick = list(i = wrong, rt = 950, hovers = list()))
+    session$setInputs(admin_pick = list(i = wrong, item = 3, rt = 950, hovers = list()))
     session$setInputs(admin_next = 1)
     expect_equal(admin$state, "done")
     res <- do.call(rbind, admin$log)
@@ -50,6 +50,22 @@ test_that("the Shiny server logic generates, browses and administers items", {
     expect_equal(res$correct, c(TRUE, FALSE, FALSE))
     expect_true(is.na(res$chosen_option[2]))
     expect_true(grepl("Finished", output$admin_ui$html))
+
+    # Without feedback the first answer advances at once; a late second click
+    # that still names item 1 must not count as the answer to item 2.
+    session$setInputs(admin_restart = 1)
+    session$setInputs(feedback = FALSE, start = 2)
+    expect_equal(admin$pos, 1)
+    session$setInputs(admin_pick = list(i = first$correct, item = 1, rt = 500, hovers = list()))
+    expect_equal(admin$pos, 2)
+    expect_equal(length(admin$log), 1)
+    session$setInputs(admin_pick = list(i = first$correct, item = 1, rt = 650, hovers = list()))
+    expect_equal(admin$pos, 2)
+    expect_equal(length(admin$log), 1)
+    session$setInputs(admin_pick = list(i = 1, item = 2, rt = 700, hovers = list()))
+    expect_equal(admin$pos, 3)
+    expect_equal(length(admin$log), 2)
+    session$setInputs(admin_restart = 2)
 
     # Two-layer generation
     session$setInputs(layered = TRUE, shape = "polygon", rule = "dist-of-3",

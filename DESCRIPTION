@@ -28,6 +28,7 @@ Suggests:
     bslib,
     callr,
     ragg,
+    png,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown

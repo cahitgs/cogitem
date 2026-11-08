@@ -9,24 +9,31 @@ q_matrix(x, formula = ~rule + shape, intercept = FALSE)
 \arguments{
 \item{x}{A \code{cog_item_set} (or anything accepted by \code{\link[=item_features]{item_features()}}).}
 
-\item{formula}{A one-sided formula over the columns of \code{\link[=item_features]{item_features()}}.}
+\item{formula}{A one-sided additive formula over the columns of
+\code{\link[=item_features]{item_features()}}.}
 
-\item{intercept}{Keep the intercept column?}
+\item{intercept}{Add a column of ones?}
 }
 \value{
 A numeric matrix with item ids as row names.
 }
 \description{
-Builds a design matrix (items x features) from \code{\link[=item_features]{item_features()}} with
-\code{\link[stats:model.matrix]{stats::model.matrix()}}. The default formula codes rule and shape as dummy
-variables; any combination of feature columns can be used, for example
-\code{~ rule_family + n_options}. The result can be passed to
-LLTM software such as \code{eRm::LLTM()} (after dropping the intercept) or used
-as item covariates in \code{lme4::glmer()} / \code{TAM}.
+Builds a design matrix (items x features) from \code{\link[=item_features]{item_features()}}. Every
+character feature in the formula is expanded into one 0/1 column per
+observed level, with no reference level dropped, as is usual for a
+Q-matrix; numeric and logical features are kept as they are. A missing
+feature value means that the attribute does not apply to the item and is
+coded 0. Only additive formulas are supported. Note that the indicator
+columns of two complete factors are linearly dependent (both sum to one
+in every row): drop one column per additional factor, or use a single
+factor, when the estimation software needs full column rank, as
+\code{eRm::LLTM()} does; \code{lme4::glmer()} and \code{TAM} accept the columns as item
+covariates.
 }
 \examples{
 items <- generate_mixed(subset(supported_combinations(), shape == "dice"),
                         n_each = 1, seed = 5)
 Q <- q_matrix(items, ~ rule)
 dim(Q)
+q_matrix(items, ~ rule_family + n_options)[1:3, ]
 }
