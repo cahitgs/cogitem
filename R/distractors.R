@@ -85,7 +85,7 @@ candidate_perturbations <- function(correct) {
   if (attribute_visible(correct, "strokeWidth")) {
     out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = correct$strokeWidth + 3), "strokeWidth")
     if (correct$strokeWidth > 2) {
-      out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = max(1, correct$strokeWidth - 1)), "strokeWidth")
+      out[[length(out) + 1]] <- tag_tier(shape_set(correct, strokeWidth = max(1, correct$strokeWidth - 2)), "strokeWidth")
     }
   }
 
@@ -127,8 +127,8 @@ make_distinct_distractors <- function(correct, siblings, count) {
   while (length(out) < count && attempts < 40) {
     attempts <- attempts + 1
     tweak <- shape_set(correct,
-                       strokeWidth = correct$strokeWidth + attempts,
-                       size = round2(max(0.3, correct$size - 0.05 * attempts)))
+                       strokeWidth = correct$strokeWidth + 2 * attempts,
+                       size = round2(max(0.3, correct$size - 0.1 * attempts)))
     add(tweak, "fallback")
   }
   out

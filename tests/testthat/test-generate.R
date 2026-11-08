@@ -130,6 +130,15 @@ test_that("is_item_valid() verifies the rule relation itself", {
   swapped$cells[[1]][[1]] <- prog$cells[[1]][[2]]
   swapped$cells[[1]][[2]] <- prog$cells[[1]][[1]]
   expect_false(is_item_valid(swapped))
+  # a hand-made progression without axis metadata is verified from its cells
+  hand_prog <- cog_item(prog$cells, prog$options, prog$correct, rule = "progression", shape = "bars")
+  expect_null(hand_prog$meta$primary_axis)
+  expect_true(is_item_valid(hand_prog))
+  hand_swapped <- cog_item(swapped$cells, prog$options, prog$correct, rule = "progression", shape = "bars")
+  expect_false(is_item_valid(hand_swapped))
+  cb_prog <- generate_item("checkerboard", "progression", seed = 10)
+  expect_true(is_item_valid(cb_prog))
+  expect_true(is_item_valid(cog_item(cb_prog$cells, cb_prog$options, cb_prog$correct, rule = "progression", shape = "checkerboard")))
   lay <- generate_layered(c("polygon", "progression"), c("dice", "addition"), n = 1, seed = 9)[[1]]
   expect_true(is_item_valid(lay))
   lay$cells[[1]][[3]]$layers[[2]]$params$dotCount <- lay$cells[[1]][[3]]$layers[[2]]$params$dotCount %% 9 + 1

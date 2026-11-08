@@ -39,14 +39,21 @@ test_that("audit_items returns one row per item and flags ambiguous items", {
   expect_true(all(c("min_option_distance", "min_cell_distance", "flagged") %in% names(a)))
   expect_true(all(a$min_option_distance > 0))
 
-  # a hand-made item whose two options differ by 1 % in size must be flagged
-  base <- cog_shape("polygon", list(sides = 4), size = 0.8)
+  # a hand-made item whose two options differ only by 0.01 in the inner radius
+  # ratio of a star must be flagged (no symbolic rule covers that parameter)
+  base <- cog_shape("star", list(points = 6, innerRatio = 0.3), size = 0.8)
   cells <- lapply(1:3, function(r) lapply(1:3, function(c) base))
-  bad <- cog_item(cells, list(base, shape_set(base, size = 0.81),
-                              cog_shape("polygon", list(sides = 6))),
-                  correct = 1, rule = "identity", shape = "polygon")
+  bad <- cog_item(cells, list(base, cog_shape("star", list(points = 6, innerRatio = 0.31), size = 0.8),
+                              cog_shape("star", list(points = 8, innerRatio = 0.3), size = 0.8)),
+                  correct = 1, rule = "identity", shape = "star")
   expect_true(is_item_valid(bad))      # symbolic check cannot see it
   expect_true(audit_item(bad)$flagged) # perceptual audit can
+  # a 1 % size step, by contrast, is now caught symbolically
+  sq <- cog_shape("polygon", list(sides = 4), size = 0.8)
+  expect_false(is_item_valid(cog_item(lapply(1:3, function(r) lapply(1:3, function(c) sq)),
+                                      list(sq, cog_shape("polygon", list(sides = 4), size = 0.81),
+                                           cog_shape("polygon", list(sides = 6))),
+                                      correct = 1, rule = "identity", shape = "polygon")))
 })
 
 test_that("generate_items(perceptual = TRUE) records the audit in meta", {

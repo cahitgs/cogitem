@@ -20,6 +20,11 @@
   checked too. Attributes a carrier does not draw (the fill of checkerboards,
   bars, sector pies and block letters, the stroke width of unfilled dot
   grids) are ignored by `visual_signature()` and never used for distractors.
+* Symbolic confusability also covers size steps below 0.06, stroke-width steps
+  below 2 units and rotations that leave every component of a carrier within
+  a few cell units of a symmetric position (a nested heptagon/octagon rotated
+  by 45 degrees); pattern carriers take their rotational symmetry from the
+  pattern itself. Fill distractors use a stronger tint.
 * `q_matrix()` uses explicit indicator coding (one column per level, a
   missing attribute is 0), so it also works for single-level factors and
   rule-specific features; the perceptual audit falls back to the **png**

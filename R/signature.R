@@ -81,15 +81,16 @@ rotation_symmetry_fold <- function(s) {
       cols <- round(p$cols %||% 2)
       if (rows == cols) 4 else 2
     },
-    checkerboard = 1,
-    "box-lines" = 1,
+    checkerboard = grid_pattern_fold(round(p$rows %||% 3), round(p$cols %||% 3),
+                                     round(p$pattern %||% 0)),
+    "box-lines" = box_lines_fold(round(p$lineMask %||% 0)),
     "nested-polygon" = {
       outer <- max(3, round(p$outerSides %||% 4))
       inner <- max(3, round(p$innerSides %||% 4))
       gcd(outer, inner)
     },
-    "sector-pie" = 1,
-    "block-letter" = 1,
+    "sector-pie" = sector_pie_fold(p),
+    "block-letter" = grid_pattern_fold(3, 3, BLOCK_LETTER_PRESETS[clamp(round(p$patternIndex %||% 0), 0, 7) + 1]),
     1
   )
 }
@@ -97,6 +98,58 @@ rotation_symmetry_fold <- function(s) {
 gcd <- function(a, b) {
   if (b == 0) return(max(1, a))
   gcd(b, a %% b)
+}
+
+# Rotational symmetry of a filled-cell pattern on a rows x cols grid (bit
+# r * cols + c set = cell filled): 4 when a square pattern is invariant under
+# 90 degrees, 2 when invariant under 180 degrees, otherwise 1.
+grid_pattern_fold <- function(rows, cols, pattern) {
+  if (is.na(rows) || is.na(cols) || rows < 1 || cols < 1) return(1)
+  pattern <- as.integer(pattern)
+  filled <- function(r, c) bitwAnd(pattern, bitwShiftL(1L, as.integer(r * cols + c))) != 0
+  g <- expand.grid(r = 0:(rows - 1), c = 0:(cols - 1))
+  inv180 <- all(mapply(function(r, c) filled(r, c) == filled(rows - 1 - r, cols - 1 - c), g$r, g$c))
+  if (!inv180) return(1)
+  if (rows == cols &&
+      all(mapply(function(r, c) filled(r, c) == filled(c, rows - 1 - r), g$r, g$c))) return(4)
+  2
+}
+
+# Box with spokes (bits 1, 2, 4, 8 = top, right, bottom, left) and diagonals
+# (16 = top-left to bottom-right, 32 = top-right to bottom-left). The box
+# itself is square, so only the lines decide the symmetry.
+box_lines_fold <- function(mask) {
+  mask <- as.integer(mask)
+  bit <- function(b) bitwAnd(mask, b) != 0
+  spokes <- c(bit(1L), bit(2L), bit(4L), bit(8L))
+  diags <- c(bit(16L), bit(32L))
+  rot90 <- function(s) s[c(4, 1, 2, 3)]
+  if (identical(spokes, rot90(spokes)) && diags[1] == diags[2]) return(4)
+  if (identical(spokes, rot90(rot90(spokes)))) return(2)
+  1
+}
+
+# Sector pie: the sector sequence must repeat under the rotation and every
+# texture present must look the same after it (solid, empty and dots at any
+# angle, cross-hatch at multiples of 90 degrees, parallel and diagonal lines
+# only at 180 degrees).
+sector_pie_fold <- function(p) {
+  n <- clamp(round(p$sectorCount %||% 6), 2, 8)
+  packed <- p$sectorPatterns %||%
+    (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
+  pats <- unpack_sector_patterns(packed, n)
+  invariant <- function(theta) {
+    all(vapply(unique(pats), function(t) {
+      if (t %in% c(0, 1, 2)) TRUE else if (t == 7) theta %% 90 == 0 else theta %% 180 == 0
+    }, logical(1)))
+  }
+  for (d in seq(n, 2)) {
+    if (n %% d != 0) next
+    k <- n / d
+    shifted <- pats[((seq_len(n) - 1 + k) %% n) + 1]
+    if (identical(shifted, pats) && invariant(360 / d)) return(d)
+  }
+  1
 }
 
 #' Structural signature of an item
@@ -166,6 +219,65 @@ pattern_confusable <- function(a, b) {
   popcount(bitwXor(as.integer(pa), as.integer(pb))) < min_hamming
 }
 
+# Smallest differences along one attribute that the eye still resolves at
+# cell size (calibrated with perceptual_distance(): a size step of 0.05 or a
+# stroke-width step of 1 unit score around 0.15, the audit threshold).
+MIN_SIZE_DELTA <- 0.06
+MIN_STROKE_DELTA <- 2
+ROTATION_MIN_SHIFT <- 8     # cell units a vertex must move away from a symmetric position
+ROTATION_MIN_OFFSET_ASYM <- 4 # degrees for carriers without rotational symmetry
+
+# TRUE when a and b differ in nothing but `attr` (through the visual signature).
+same_except <- function(a, b, attr) {
+  if (a$kind != b$kind) return(FALSE)
+  neutral <- switch(attr, size = 0.5, strokeWidth = 1, rotation = 0, 0)
+  a[[attr]] <- neutral
+  b[[attr]] <- neutral
+  visual_signature(a) == visual_signature(b)
+}
+
+size_confusable <- function(a, b) {
+  d <- abs(a$size - b$size)
+  d > 0 && d < MIN_SIZE_DELTA && same_except(a, b, "size")
+}
+
+stroke_width_confusable <- function(a, b) {
+  d <- abs(a$strokeWidth - b$strokeWidth)
+  d > 0 && d < MIN_STROKE_DELTA && attribute_visible(a, "strokeWidth") &&
+    same_except(a, b, "strokeWidth")
+}
+
+# Angular periods (degrees) after which the carrier, or each of its
+# components, looks the same, with the radius (cell units) of each component:
+# a nested heptagon/octagon has periods 51.4 and 45 although its exact
+# symmetry fold is 1.
+symmetry_components <- function(s) {
+  p <- s$params
+  outer_r <- 50 * 0.9 * s$size
+  if (s$kind == "nested-polygon") {
+    n <- pmax(1, round(c(p$outerSides %||% 4, p$innerSides %||% 4)))
+    return(list(period = 360 / n,
+                radius = c(outer_r, outer_r * clamp(p$innerScale %||% 0.5, 0.25, 0.75))))
+  }
+  list(period = 360 / rotation_symmetry_fold(s), radius = outer_r)
+}
+
+# TRUE when a and b differ only by a rotation that leaves every component
+# within a few degrees of one of its symmetric positions.
+rotation_confusable <- function(a, b) {
+  delta <- (a$rotation - b$rotation) %% 360
+  if (delta == 0 || !same_except(a, b, "rotation")) return(FALSE)
+  comp <- symmetry_components(a)
+  invisible <- vapply(seq_along(comp$period), function(k) {
+    p <- comp$period[k]
+    m <- delta %% p
+    offset <- min(m, p - m)
+    if (p >= 360) return(offset < ROTATION_MIN_OFFSET_ASYM)
+    comp$radius[k] * sin(offset * pi / 180) < ROTATION_MIN_SHIFT
+  }, logical(1))
+  all(invisible)
+}
+
 # Nominally different but not reliably distinguishable by eye (symbolic rules).
 confusable <- function(a, b) {
   if (visual_signature(a) == visual_signature(b)) return(FALSE)
@@ -177,5 +289,6 @@ confusable <- function(a, b) {
       visual_signature(x) == visual_signature(y) || confusable(x, y)
     }, logical(1))))
   }
-  count_confusable(a, b) || pattern_confusable(a, b)
+  count_confusable(a, b) || pattern_confusable(a, b) || size_confusable(a, b) ||
+    stroke_width_confusable(a, b) || rotation_confusable(a, b)
 }

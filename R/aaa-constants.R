@@ -14,7 +14,7 @@ STROKE_PALETTE <- c(
 
 SIZE_BUCKETS <- c(0.55, 0.75, 0.92)
 ROTATION_BUCKETS <- c(0, 45, 90, 135, 180)
-DISTRACTOR_FILL <- "rgba(167, 139, 250, 0.22)"
+DISTRACTOR_FILL <- "rgba(167, 139, 250, 0.45)" # light enough to keep the stroke legible, strong enough to be seen at cell size
 
 # Figural carriers available for 3x3 matrix items.
 SHAPES <- c(

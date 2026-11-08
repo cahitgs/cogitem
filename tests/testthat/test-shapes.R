@@ -65,3 +65,71 @@ test_that("attributes a carrier does not draw never distinguish options", {
   expect_gt(audit_item(it)$min_option_distance, 0.1)
 })
 
+test_that("rotation symmetry of pattern carriers follows the pattern", {
+  cb <- function(pattern, rotation = 0) cog_shape("checkerboard", list(rows = 2, cols = 2, pattern = pattern), rotation = rotation)
+  expect_equal(rotation_symmetry_fold(cb(9)), 2)   # two diagonal cells
+  expect_equal(rotation_symmetry_fold(cb(15)), 4)  # all cells
+  expect_equal(rotation_symmetry_fold(cb(1)), 1)   # one cell
+  expect_identical(visual_signature(cb(9)), visual_signature(cb(9, 180)))
+  expect_false(identical(visual_signature(cb(9)), visual_signature(cb(9, 90))))
+  expect_false(identical(visual_signature(cb(1)), visual_signature(cb(1, 180))))
+  bl <- function(mask, rotation = 0) cog_shape("box-lines", list(lineMask = mask), rotation = rotation)
+  expect_equal(rotation_symmetry_fold(bl(5)), 2)   # top + bottom spokes
+  expect_equal(rotation_symmetry_fold(bl(15)), 4)  # four spokes
+  expect_equal(rotation_symmetry_fold(bl(48)), 4)  # both diagonals
+  expect_equal(rotation_symmetry_fold(bl(16)), 2)  # one diagonal
+  expect_equal(rotation_symmetry_fold(bl(1)), 1)   # one spoke
+  expect_identical(visual_signature(bl(5)), visual_signature(bl(5, 180)))
+  pie <- function(pats, rotation = 0) cog_shape("sector-pie", list(sectorCount = length(pats), sectorPatterns = cogitem:::pack_sector_patterns(pats)), rotation = rotation)
+  expect_equal(rotation_symmetry_fold(pie(c(1, 0, 1, 0))), 2)
+  expect_equal(rotation_symmetry_fold(pie(c(3, 3, 3, 3))), 2)  # horizontal lines: 180 only
+  expect_equal(rotation_symmetry_fold(pie(c(1, 1, 1, 1))), 4)
+  expect_equal(rotation_symmetry_fold(pie(c(7, 7, 7, 7, 7, 7, 7, 7))), 4)  # cross-hatch: 90
+  expect_equal(rotation_symmetry_fold(pie(c(1, 2, 0, 0, 0))), 1)
+  expect_identical(visual_signature(pie(c(1, 0, 1, 0))), visual_signature(pie(c(1, 0, 1, 0), 180)))
+  for (i in 0:7) expect_equal(rotation_symmetry_fold(cog_shape("block-letter", list(patternIndex = i))), 1)
+  # the generator never offers a rotated copy that renders identically
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  for (sh in c("box-lines", "checkerboard", "sector-pie")) {
+    for (s in c(5, 8, 13)) {
+      it <- generate_item(sh, "identity", seed = s, n_options = 8)
+      expect_gt(audit_item(it)$min_option_distance, 0.02)
+    }
+  }
+})
+
+test_that("the reported box-lines item set has no identical options", {
+  x <- generate_items("box-lines", "identity", n = 16, seed = 12, n_options = 8)
+  expect_equal(length(x), 16)
+  for (it in x) expect_equal(anyDuplicated(vapply(it$options, visual_signature, "")), 0)
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  expect_true(all(audit_items(x)$min_option_distance > 0.02))
+})
+
+test_that("tiny size, stroke-width and near-symmetric rotation steps count as confusable", {
+  star <- function(size = 0.8, sw = 2, rot = 0) cog_shape("star", list(points = 6, innerRatio = 0.3), size = size, strokeWidth = sw, rotation = rot)
+  expect_true(cogitem:::confusable(star(0.80), star(0.81)))
+  expect_true(cogitem:::confusable(star(0.50), star(0.55)))
+  expect_false(cogitem:::confusable(star(0.80), star(0.90)))
+  expect_false(cogitem:::confusable(star(0.65), star(0.80)))
+  expect_true(cogitem:::confusable(star(sw = 3), star(sw = 4)))
+  expect_false(cogitem:::confusable(star(sw = 3), star(sw = 5)))
+  expect_false(cogitem:::confusable(star(sw = 1), star(sw = 3)))
+  nested <- function(o, i, rot = 0) cog_shape("nested-polygon", list(outerSides = o, innerSides = i, innerScale = 0.5), rotation = rot)
+  expect_true(cogitem:::confusable(nested(7, 8), nested(7, 8, 45)))
+  expect_false(cogitem:::confusable(nested(7, 8), nested(7, 8, 90)))
+  expect_false(cogitem:::confusable(nested(3, 4), nested(3, 4, 45)))
+  arrow <- function(rot) cog_shape("arrow", list(headRatio = 0.45, shaftWidth = 0.35), rotation = rot)
+  expect_false(cogitem:::confusable(arrow(0), arrow(10)))
+  expect_true(cogitem:::confusable(arrow(0), arrow(2)))
+  # a size difference plus another change is not confusable by the size rule
+  expect_false(cogitem:::confusable(star(0.80), star(0.81, sw = 6)))
+  # the mechanisms seen in the sweep no longer appear in generated options
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  for (cb in list(c("star", "dist-of-3", 12), c("arrow", "dist-of-3", 18), c("spike-ring", "dist-of-3", 12),
+                  c("nested-polygon", "identity", 13))) {
+    it <- generate_item(cb[1], cb[2], seed = as.integer(cb[3]), n_options = 8)
+    expect_gt(audit_item(it)$min_option_distance, 0.1)
+  }
+})
+

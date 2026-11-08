@@ -156,9 +156,12 @@ rule_holds <- function(rule, shape, cells, meta = list()) {
   )
 }
 
-# Progression: every row and column shows three different cells; when the
-# generator recorded the axes, the primary attribute must change in order
-# along the columns (and nothing else), the secondary one along the rows.
+# Progression: every row and column shows three different cells, the primary
+# attribute changes in order along the columns of every row (and nothing
+# else), the secondary attribute along the rows of every column. The axes
+# come from the generator's record or, for hand-made items, are inferred from
+# the cells: in each direction exactly one attribute may differ between
+# neighbouring cells. An item whose axes cannot be identified is invalid.
 progression_holds <- function(cells, meta) {
   sig <- visual_signature
   row_sigs <- function(r) vapply(cells[[r]], sig, character(1))
@@ -166,35 +169,89 @@ progression_holds <- function(cells, meta) {
   distinct <- all(vapply(1:3, function(r) length(unique(row_sigs(r))) == 3, logical(1))) &&
     all(vapply(1:3, function(c) length(unique(col_sigs(c))) == 3, logical(1)))
   if (!distinct) return(FALSE)
-  primary <- meta$primary_axis
-  secondary <- meta$secondary_axis
-  if (is.null(primary) || is.null(secondary)) return(TRUE)
-  attrs <- c("size", "strokeWidth", "rotation")
-  value <- function(s, name) {
-    v <- if (name %in% attrs) s[[name]] else s$params[[name]]
-    if (is.null(v) || length(v) != 1) NA_real_ else as.numeric(v)
-  }
-  neutral <- function(s, name) {
-    if (name %in% attrs) s[[name]] <- if (name == "rotation") 0 else 1 else s$params[[name]] <- 0
-    s
-  }
-  ordered <- function(v, name) {
-    if (name == "patternIndex") return(length(unique(v)) == 3)
-    if (anyNA(v)) return(FALSE)
-    if (name == "rotation") {
-      d <- diff(v) %% 360
-      return(d[1] != 0 && abs(d[1] - d[2]) < 1e-6)
-    }
-    d <- diff(v)
-    all(d > 1e-9) || all(d < -1e-9)
-  }
+  primary <- meta$primary_axis %||% infer_axis(cells, "row")
+  secondary <- meta$secondary_axis %||% infer_axis(cells, "col")
+  if (is.null(primary) || is.null(secondary)) return(FALSE)
   for (r in 1:3) {
-    if (!ordered(vapply(1:3, function(c) value(cells[[r]][[c]], primary), numeric(1)), primary)) return(FALSE)
-    if (length(unique(vapply(cells[[r]], function(s) sig(neutral(s, primary)), character(1)))) != 1) return(FALSE)
+    vals <- lapply(1:3, function(c) shape_attr(cells[[r]][[c]], primary))
+    if (!ordered_axis(vals, primary)) return(FALSE)
+    fixed <- vapply(cells[[r]], function(s) sig(set_attr(s, primary, vals[[1]])), character(1))
+    if (length(unique(fixed)) != 1) return(FALSE)
   }
   for (c in 1:3) {
-    if (!ordered(vapply(1:3, function(r) value(cells[[r]][[c]], secondary), numeric(1)), secondary)) return(FALSE)
-    if (length(unique(vapply(1:3, function(r) sig(neutral(cells[[r]][[c]], secondary)), character(1)))) != 1) return(FALSE)
+    vals <- lapply(1:3, function(r) shape_attr(cells[[r]][[c]], secondary))
+    if (!ordered_axis(vals, secondary)) return(FALSE)
+    fixed <- vapply(1:3, function(r) sig(set_attr(cells[[r]][[c]], secondary, vals[[1]])), character(1))
+    if (length(unique(fixed)) != 1) return(FALSE)
   }
   TRUE
+}
+
+SHAPE_ATTRS <- c("size", "strokeWidth", "rotation", "stroke", "fill")
+# numeric parameters that are codes, not quantities
+CATEGORICAL_PARAMS <- c("patternIndex", "pattern", "lineMask", "sectorPatterns", "fillMask",
+                        "orientation", "markerPos")
+
+shape_attr <- function(s, name) {
+  v <- if (name %in% SHAPE_ATTRS) s[[name]] else s$params[[name]]
+  if (is.null(v) || length(v) != 1) NA else v
+}
+
+set_attr <- function(s, name, value) {
+  if (name %in% SHAPE_ATTRS) s[[name]] <- value else s$params[[name]] <- value
+  s
+}
+
+same_value <- function(x, y) {
+  if (is.na(x) && is.na(y)) return(TRUE)
+  if (is.na(x) || is.na(y)) return(FALSE)
+  if (is.numeric(x) && is.numeric(y)) return(abs(x - y) < 1e-9)
+  identical(as.character(x), as.character(y))
+}
+
+# Names of the attributes in which two shapes differ (rotation modulo 360).
+differing_attrs <- function(a, b) {
+  nms <- union(SHAPE_ATTRS, union(names(a$params), names(b$params)))
+  nms[vapply(nms, function(nm) {
+    x <- shape_attr(a, nm)
+    y <- shape_attr(b, nm)
+    if (nm == "rotation") {
+      if (!is.na(x)) x <- x %% 360
+      if (!is.na(y)) y <- y %% 360
+    }
+    !same_value(x, y)
+  }, logical(1))]
+}
+
+# The one attribute that changes between horizontal neighbours ("row": along
+# the columns of each row) or vertical neighbours ("col"); NULL when the
+# cells do not agree on a single attribute.
+infer_axis <- function(cells, direction) {
+  pairs <- if (direction == "row") {
+    lapply(1:3, function(r) lapply(1:2, function(c) list(cells[[r]][[c]], cells[[r]][[c + 1]])))
+  } else {
+    lapply(1:3, function(c) lapply(1:2, function(r) list(cells[[r]][[c]], cells[[r + 1]][[c]])))
+  }
+  pairs <- unlist(pairs, recursive = FALSE)
+  diffs <- lapply(pairs, function(p) differing_attrs(p[[1]], p[[2]]))
+  if (any(lengths(diffs) != 1)) return(NULL)
+  axis <- unique(unlist(diffs))
+  if (length(axis) != 1) return(NULL)
+  axis
+}
+
+# Three values along an axis form a progression: strictly monotone for
+# quantities, constant steps for rotation, three different values for codes
+# and colours.
+ordered_axis <- function(vals, name) {
+  if (any(vapply(vals, function(v) length(v) != 1 || is.na(v), logical(1)))) return(FALSE)
+  numeric <- all(vapply(vals, is.numeric, logical(1)))
+  if (!numeric || name %in% CATEGORICAL_PARAMS) return(length(unique(unlist(vals))) == 3)
+  v <- unlist(vals)
+  if (name == "rotation") {
+    d <- diff(v) %% 360
+    return(d[1] != 0 && abs(d[1] - d[2]) < 1e-6)
+  }
+  d <- diff(v)
+  all(d > 1e-9) || all(d < -1e-9)
 }
