@@ -45,6 +45,10 @@
   numbered options, keyboard shortcuts (1-8, Enter) and a results summary.
   Bundled typefaces (Fraunces, Manrope; SIL OFL), package logo in the header
   and as favicon; the display accent follows the logo (ink blue).
+* Distribution of two is now admissible for box lines, nested polygons and
+  sector pies as well (12 carriers, 84 shape-rule combinations); the rule is
+  withheld only from carriers with sparse or empty states (grid dots,
+  checkerboard, block letter).
 * Sector pies are compared by what they draw: dividers between solid sectors
   are invisible, so an all-solid pie has one signature whatever its sector
   count, and dividers running through hatched or dotted sectors do not count

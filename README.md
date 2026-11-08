@@ -52,7 +52,7 @@ the Raven Progressive Matrices, extended with bitwise logic.
 | --- | --- | --- |
 | `identity` | constant in a row | all 15 shapes |
 | `dist-of-3` | distribution of three values | all 15 shapes |
-| `dist-of-2` | distribution of two values + blank | 9 shapes with clear silhouettes |
+| `dist-of-2` | distribution of two values + blank | 12 shapes (not grid dots, checkerboard, block letter: they have sparse or empty states) |
 | `progression` | quantitative pairwise progression on two axes | 14 shapes |
 | `addition`, `subtraction` | figure addition / subtraction on a count | 7 count-based shapes |
 | `multiplication` | figure multiplication | `dice`, `sector-pie` |

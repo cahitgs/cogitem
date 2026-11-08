@@ -101,9 +101,13 @@ COUNT_PARAM_SHAPES <- c(
 ARITH_SHAPES <- setdiff(COUNT_PARAM_SHAPES, c("spike-ring", "petals", "star"))
 MULTIPLICATION_SHAPES <- c("dice", "sector-pie")
 ROTATION_SHAPES <- c("arrow", "hammer")
+# Distribution of two puts a blank cell in every row and column, so the carrier
+# must never look nearly empty itself: carriers with sparse or empty states (a
+# lattice reduced to a single dot, an empty checkerboard, a glyph without
+# filled cells) are excluded.
 DIST_OF_2_SHAPES <- c(
   "annulus", "dice", "polygon", "star", "arrow", "petals", "spike-ring",
-  "hammer", "bars"
+  "hammer", "bars", "box-lines", "nested-polygon", "sector-pie"
 )
 MIRROR_SHAPES <- c("arrow", "hammer")
 BOOL_SHAPES <- c("sector-pie", "checkerboard")
