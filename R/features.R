@@ -25,8 +25,8 @@ meta_num <- function(m, name) {
 #'
 #' Returns one row per item with the design features that are known at
 #' generation time: the rule and its family, the figural carrier, the number
-#' of options, the calibrated difficulty and its components, how the
-#' distractors were constructed and rule-specific parameters (varying axis,
+#' of options, how the distractors were constructed and rule-specific
+#' parameters (varying axis,
 #' progression axes, rotation step, mirror axis, operator, operands, bit
 #' count). These columns are the natural predictors for a linear logistic test
 #' model (LLTM) or an explanatory IRT model of empirical item difficulty.
@@ -35,7 +35,7 @@ meta_num <- function(m, name) {
 #' @return A data frame.
 #' @examples
 #' items <- generate_items("sector-pie", "xor", n = 3, seed = 3)
-#' item_features(items)[, c("rule", "shape", "difficulty", "bit_count")]
+#' item_features(items)[, c("rule", "shape", "bit_count")]
 #' @seealso [q_matrix()]
 #' @export
 item_features <- function(x) {
@@ -52,9 +52,6 @@ item_features <- function(x) {
       rule_family = unname(RULE_FAMILY[it$rule]) %||% NA_character_,
       n_options = it$n_options,
       correct_position = it$correct,
-      difficulty = it$difficulty,
-      rule_load = unname(RULE_LOAD[it$rule]) %||% NA_real_,
-      shape_bonus = unname(SHAPE_BONUS[it$shape]) %||% NA_real_,
       n_rule_distractors = sum(dtiers %in% RULE_DERIVED_TIERS),
       n_perturbation_distractors = sum(!(dtiers %in% RULE_DERIVED_TIERS)),
       distractor_tiers = paste(dtiers, collapse = ";"),
@@ -75,8 +72,6 @@ item_features <- function(x) {
   }
   rownames(out) <- NULL
   out$rule_family[is.na(out$rule_family)] <- "other"
-  out$rule_load[is.na(out$rule_load)] <- 2
-  out$shape_bonus[is.na(out$shape_bonus)] <- 0
   out
 }
 
@@ -85,7 +80,7 @@ item_features <- function(x) {
 #' Builds a design matrix (items x features) from [item_features()] with
 #' [stats::model.matrix()]. The default formula codes rule and shape as dummy
 #' variables; any combination of feature columns can be used, for example
-#' `~ rule_family + shape_bonus + n_options`. The result can be passed to
+#' `~ rule_family + n_options`. The result can be passed to
 #' LLTM software such as `eRm::LLTM()` (after dropping the intercept) or used
 #' as item covariates in `lme4::glmer()` / `TAM`.
 #'

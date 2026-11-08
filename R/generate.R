@@ -114,7 +114,7 @@ new_item_set <- function(items, meta = list()) {
 #' items[[1]]
 #' plot(items[[1]])
 #' @seealso [generate_item()], [generate_mixed()], [item_features()],
-#'   [audit_items()], [write_items_json()], [run_app()]
+#'   [audit_items()], [run_app()]
 #' @export
 generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
                            max_attempts = NULL, perceptual = FALSE,
@@ -226,7 +226,7 @@ generate_item <- function(shape, rule, seed = NULL, n_options = 4) {
 
 #' Generate a mixed item set from several shape-rule specifications
 #'
-#' Mirrors the "Mixer" of the Cogitem web application: draws `n_each` items
+#' Draws `n_each` items
 #' for every row of `specs` and combines them in one set (optionally
 #' shuffled), for example to assemble a test that samples every rule.
 #'
@@ -289,8 +289,8 @@ sample_items <- function(x, n, seed = NULL) {
 
 #' @export
 print.cog_item <- function(x, ...) {
-  cat(sprintf("<cog_item %s> %s x %s | difficulty %s | %d options | answer #%d\n",
-              x$id, x$shape, x$rule, format(x$difficulty), x$n_options, x$correct))
+  cat(sprintf("<cog_item %s> %s x %s | %d options | answer #%d\n",
+              x$id, x$shape, x$rule, x$n_options, x$correct))
   invisible(x)
 }
 
@@ -307,9 +307,6 @@ print.cog_item_set <- function(x, ...) {
     if (length(unique(f$rule)) > 1 || length(unique(f$shape)) > 1) {
       print(tab)
     }
-    cat(sprintf("difficulty: %s\n",
-                paste(sprintf("%d x d%d", as.integer(table(f$difficulty)),
-                              as.integer(names(table(f$difficulty)))), collapse = ", ")))
   }
   if (!is.null(m$attempts)) {
     cat(sprintf("attempts %d | duplicates skipped %d | invalid skipped %d%s%s\n",
@@ -341,7 +338,6 @@ as.data.frame.cog_item_set <- function(x, ...) item_features(x)
 summary.cog_item_set <- function(object, ...) {
   f <- item_features(object)
   structure(list(n = nrow(f), by_rule = table(f$rule), by_shape = table(f$shape),
-                 difficulty = table(factor(f$difficulty, levels = 1:5)),
                  meta = attr(object, "meta")), class = "summary.cog_item_set")
 }
 
@@ -350,6 +346,5 @@ print.summary.cog_item_set <- function(x, ...) {
   cat(sprintf("cog_item_set with %d items\n", x$n))
   cat("\nBy rule:\n"); print(x$by_rule)
   cat("\nBy shape:\n"); print(x$by_shape)
-  cat("\nDifficulty (1-5):\n"); print(x$difficulty)
   invisible(x)
 }

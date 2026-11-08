@@ -176,7 +176,7 @@ item_grob <- function(item, show_answer = FALSE, labels = TRUE,
 #' @param bg Background colour; `NA` for transparent. Defaults to white.
 #' @param newpage Call [grid::grid.newpage()] first?
 #' @param n,ncol Number of items and columns of the contact sheet.
-#' @param captions Print id, rule and difficulty above each item of the sheet?
+#' @param captions Print index, carrier and rule above each item of the sheet?
 #' @param ... Ignored.
 #' @return The input, invisibly.
 #' @examples
@@ -213,8 +213,7 @@ plot.cog_item_set <- function(x, n = 6, ncol = 3, show_answer = FALSE,
                           layout.pos.col = (i - 1) %% ncol + 1))
     if (captions) {
       pushViewport(viewport(y = 1, height = 0.08, just = "top"))
-      grid.draw(fit_text_grob(sprintf("%d. %s / %s  (d=%s)", i, it$shape, it$rule,
-                                      format(it$difficulty)),
+      grid.draw(fit_text_grob(sprintf("%d. %s / %s", i, it$shape, it$rule),
                               frac = 0.45, col = PALETTE$muted, fontface = "plain"))
       popViewport()
       pushViewport(viewport(y = 0, height = 0.9, just = "bottom", width = 0.94))

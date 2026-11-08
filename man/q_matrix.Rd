@@ -20,7 +20,7 @@ A numeric matrix with item ids as row names.
 Builds a design matrix (items x features) from \code{\link[=item_features]{item_features()}} with
 \code{\link[stats:model.matrix]{stats::model.matrix()}}. The default formula codes rule and shape as dummy
 variables; any combination of feature columns can be used, for example
-\code{~ rule_family + shape_bonus + n_options}. The result can be passed to
+\code{~ rule_family + n_options}. The result can be passed to
 LLTM software such as \code{eRm::LLTM()} (after dropping the intercept) or used
 as item covariates in \code{lme4::glmer()} / \code{TAM}.
 }

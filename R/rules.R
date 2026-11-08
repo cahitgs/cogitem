@@ -1,7 +1,6 @@
 # Rule generators. Each builds a 3x3 matrix of shape configurations whose
 # bottom-right cell is missing, a correct answer and rule-derived distractor
-# candidates, then hands everything to new_item() which shuffles the options
-# and attaches a calibrated difficulty.
+# candidates, then hands everything to new_item() which shuffles the options.
 
 new_item <- function(rule, shape, cells, correct, distractors, meta = list()) {
   opts <- c(list(correct), distractors)
@@ -20,12 +19,10 @@ new_item <- function(rule, shape, cells, correct, distractors, meta = list()) {
       options = options,
       correct = which(perm == 1L),
       n_options = length(options),
-      difficulty = NA_integer_,
       meta = c(meta, list(distractor_tiers = tiers[perm]))
     ),
     class = "cog_item"
   )
-  item$difficulty <- calibrate_difficulty(item)
   item
 }
 
@@ -41,8 +38,7 @@ new_item <- function(rule, shape, cells, correct, distractors, meta = list()) {
 #' @param options A list of [cog_shape()] objects; the response options.
 #' @param correct Integer position of the correct option in `options`.
 #' @param rule,shape Labels for the relational rule and figural carrier.
-#'   Any string is accepted; rules outside [cog_rules()] receive a neutral
-#'   difficulty load.
+#'   Any string is accepted.
 #' @param id Optional identifier.
 #' @param meta Optional list of design features recorded in
 #'   [item_features()].
@@ -76,12 +72,10 @@ cog_item <- function(cells, options, correct, rule, shape, id = NULL, meta = lis
       options = options,
       correct = correct,
       n_options = length(options),
-      difficulty = NA_integer_,
       meta = meta
     ),
     class = "cog_item"
   )
-  item$difficulty <- calibrate_difficulty(item)
   item
 }
 

@@ -16,8 +16,7 @@ objects. The bottom-right cell holds the correct answer (it is drawn as
 \item{correct}{Integer position of the correct option in \code{options}.}
 
 \item{rule, shape}{Labels for the relational rule and figural carrier.
-Any string is accepted; rules outside \code{\link[=cog_rules]{cog_rules()}} receive a neutral
-difficulty load.}
+Any string is accepted.}
 
 \item{id}{Optional identifier.}
 

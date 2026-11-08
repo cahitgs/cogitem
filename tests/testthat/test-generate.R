@@ -9,7 +9,6 @@ test_that("every supported shape-rule combination yields valid items", {
       expect_equal(it$rule, combos$rule[i])
       expect_equal(it$shape, combos$shape[i])
       expect_equal(it$n_options, 4)
-      expect_true(it$difficulty %in% 1:5)
       sigs <- vapply(it$options, visual_signature, "")
       expect_equal(anyDuplicated(sigs), 0)
       expect_identical(visual_signature(it$options[[it$correct]]),

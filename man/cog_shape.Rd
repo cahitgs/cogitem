@@ -37,9 +37,7 @@ A shape configuration describes one cell of a matrix item: the figural
 carrier (\code{kind}), its overall \code{size} (0-1 of the cell), \code{rotation} in
 degrees, \code{fill} and \code{stroke} colours, \code{strokeWidth} (in 1/100 of the cell)
 and a list of kind-specific \code{params} (for example \code{ringCount} for an
-annulus or \code{sides} for a polygon). The representation is identical to the
-\code{ShapeConfig} type of the Cogitem web application, so configurations can be
-exchanged through JSON.
+annulus or \code{sides} for a polygon).
 }
 \examples{
 s <- cog_shape("polygon", list(sides = 5), stroke = "#34d399")

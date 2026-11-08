@@ -67,5 +67,5 @@ plot(items[[1]])
 }
 \seealso{
 \code{\link[=generate_item]{generate_item()}}, \code{\link[=generate_mixed]{generate_mixed()}}, \code{\link[=item_features]{item_features()}},
-\code{\link[=audit_items]{audit_items()}}, \code{\link[=write_items_json]{write_items_json()}}, \code{\link[=run_app]{run_app()}}
+\code{\link[=audit_items]{audit_items()}}, \code{\link[=run_app]{run_app()}}
 }

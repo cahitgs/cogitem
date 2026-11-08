@@ -43,7 +43,7 @@
 
 \item{n, ncol}{Number of items and columns of the contact sheet.}
 
-\item{captions}{Print id, rule and difficulty above each item of the sheet?}
+\item{captions}{Print index, carrier and rule above each item of the sheet?}
 }
 \value{
 The input, invisibly.

@@ -4,9 +4,7 @@
 #' carrier (`kind`), its overall `size` (0-1 of the cell), `rotation` in
 #' degrees, `fill` and `stroke` colours, `strokeWidth` (in 1/100 of the cell)
 #' and a list of kind-specific `params` (for example `ringCount` for an
-#' annulus or `sides` for a polygon). The representation is identical to the
-#' `ShapeConfig` type of the Cogitem web application, so configurations can be
-#' exchanged through JSON.
+#' annulus or `sides` for a polygon).
 #'
 #' @param kind One of [cog_shapes()].
 #' @param params Named list of kind-specific numeric parameters.

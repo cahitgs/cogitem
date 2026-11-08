@@ -15,15 +15,15 @@ A data frame.
 \description{
 Returns one row per item with the design features that are known at
 generation time: the rule and its family, the figural carrier, the number
-of options, the calibrated difficulty and its components, how the
-distractors were constructed and rule-specific parameters (varying axis,
+of options, how the distractors were constructed and rule-specific
+parameters (varying axis,
 progression axes, rotation step, mirror axis, operator, operands, bit
 count). These columns are the natural predictors for a linear logistic test
 model (LLTM) or an explanatory IRT model of empirical item difficulty.
 }
 \examples{
 items <- generate_items("sector-pie", "xor", n = 3, seed = 3)
-item_features(items)[, c("rule", "shape", "difficulty", "bit_count")]
+item_features(items)[, c("rule", "shape", "bit_count")]
 }
 \seealso{
 \code{\link[=q_matrix]{q_matrix()}}

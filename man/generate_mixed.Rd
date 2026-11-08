@@ -39,7 +39,7 @@ confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 A \code{cog_item_set}.
 }
 \description{
-Mirrors the "Mixer" of the Cogitem web application: draws \code{n_each} items
+Draws \code{n_each} items
 for every row of \code{specs} and combines them in one set (optionally
 shuffled), for example to assemble a test that samples every rule.
 }

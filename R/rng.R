@@ -44,7 +44,7 @@ with_seed <- function(seed, code) {
   force(code)
 }
 
-# Item id counter (mirrors `puz-<base36>-<counter>` ids of the web app).
+# Item id counter (`puz-<base36>-<counter>`).
 .cog_env <- new.env(parent = emptyenv())
 .cog_env$counter <- 0L
 

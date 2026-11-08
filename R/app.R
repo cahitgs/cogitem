@@ -1,8 +1,8 @@
 #' Launch the Cogitem Shiny application
 #'
 #' Opens a browser application with four panels: *Generate* (choose shape,
-#' rule, number of items, seed and option count; preview and download JSON,
-#' a feature CSV or a PDF booklet), *Browse* (inspect single items with the
+#' rule, number of items, seed and option count; preview and download the
+#' item set as `.rds`, a feature CSV, an audit CSV or a PDF booklet), *Browse* (inspect single items with the
 #' answer key and design features), *Administer* (present the items one by
 #' one, log the chosen option, response time and the hover trace of every
 #' option, and download the results as CSV) and *About*.

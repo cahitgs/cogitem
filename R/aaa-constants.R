@@ -1,5 +1,4 @@
-# Constants shared across the package. Ported from the Cogitem web
-# application (src/logic/generator.ts, bulk.ts, difficulty.ts).
+# Constants shared across the package.
 
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
@@ -109,20 +108,6 @@ DIST_OF_2_SHAPES <- c(
 MIRROR_SHAPES <- c("arrow", "hammer")
 BOOL_SHAPES <- c("sector-pie", "checkerboard")
 PROGRESSION_SHAPES <- setdiff(SHAPES, "block-letter")
-
-# Difficulty calibration tables (difficulty.ts) ------------------------------
-
-RULE_LOAD <- c(
-  identity = 1, "dist-of-3" = 2, "dist-of-2" = 2, progression = 3,
-  rotation = 2, addition = 3, subtraction = 3, multiplication = 4,
-  mirror = 3, and = 4, or = 4, xor = 5, xnor = 5
-)
-
-SHAPE_BONUS <- c(
-  annulus = 0, dice = 0, polygon = 0, star = 0, arrow = 0, petals = 0,
-  "spike-ring" = 0, hammer = 1, bars = 0, "grid-dots" = 0, checkerboard = 1,
-  "nested-polygon" = 1, "sector-pie" = 1, "box-lines" = 0, "block-letter" = 1
-)
 
 # Human-readable labels used by print methods and the Shiny app.
 SHAPE_LABELS <- c(

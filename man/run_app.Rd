@@ -17,8 +17,8 @@ Called for its side effect.
 }
 \description{
 Opens a browser application with four panels: \emph{Generate} (choose shape,
-rule, number of items, seed and option count; preview and download JSON,
-a feature CSV or a PDF booklet), \emph{Browse} (inspect single items with the
+rule, number of items, seed and option count; preview and download the
+item set as \code{.rds}, a feature CSV, an audit CSV or a PDF booklet), \emph{Browse} (inspect single items with the
 answer key and design features), \emph{Administer} (present the items one by
 one, log the chosen option, response time and the hover trace of every
 option, and download the results as CSV) and \emph{About}.

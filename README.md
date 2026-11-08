@@ -2,14 +2,11 @@
 
 Rule-based automatic generation of Raven-like 3x3 matrix items in R.
 
-`cogitem` is the R port of the matrix-item core of the
-[Cogitem](https://cahitgs.github.io/itemgen1/) web application. It builds
-figural matrix items from an explicit item model (a figural carrier crossed
-with a relational rule), guarantees that the response options of every item
-are visually distinct, records the design features of every item for
-explanatory item response models, draws items with `grid`, exchanges items
-with the web application through JSON, and ships a Shiny application for
-computerised administration.
+`cogitem` builds figural matrix items from an explicit item model (a figural
+carrier crossed with a relational rule), guarantees that the response options
+of every item are visually distinct, records the design features of every
+item for explanatory item response models, draws items with `grid`, and ships
+a Shiny application for computerised administration.
 
 ## Installation
 
@@ -38,8 +35,8 @@ specs <- subset(supported_combinations(), shape == "sector-pie")
 test <- generate_mixed(specs, n_each = 3, seed = 1)
 save_booklet(test, "sector-pie-test.pdf")
 
-# interoperability with the web application ---------------------------
-write_items_json(test, "sector-pie-test.json")
+# keep the item bank for later sessions --------------------------------
+saveRDS(test, "sector-pie-test.rds")
 
 # computerised administration -----------------------------------------
 run_app(test)
@@ -93,29 +90,22 @@ audit_items(items)
 clean <- generate_items("sector-pie", "xor", n = 50, seed = 1, perceptual = TRUE)
 ```
 
-### Design features and difficulty
+### Design features
 
 `item_features()` returns, for every item, the rule and its family, the
-carrier, the number of options, the calibrated a priori difficulty and its
-components, how the distractors were constructed, and rule-specific
-parameters (varying axis, progression axes, rotation step, operands, bit
-count). `q_matrix()` turns these into a design matrix for linear logistic
-test models (`eRm::LLTM()`), explanatory IRT models (`lme4::glmer()`,
-`TAM`) or any other analysis that links design features to empirical item
-difficulty.
-
-## Interoperability with the web application
-
-`write_items_json()` produces the same JSON layout as the web application's
-"Download JSON" button (0-based `correctIndex`, `ShapeConfig` cells), and
-`read_items_json()` reads such files. Items generated in R can therefore be
-administered in the browser, and web-generated items can be analysed in R.
+carrier, the number of options, how the distractors were constructed, and
+rule-specific parameters (varying axis, progression axes, rotation step,
+operands, bit count). `q_matrix()` turns these into a design matrix for
+linear logistic test models (`eRm::LLTM()`), explanatory IRT models
+(`lme4::glmer()`, `TAM`) or any other analysis that links design features to
+empirical item difficulty. The package assigns no a priori difficulty rating
+on purpose: difficulty is to be estimated from response data.
 
 ## Shiny application
 
 `run_app()` opens an application with four panels: **Generate** (shape,
-rule, n, seed, option count; gallery preview; JSON, feature-CSV and PDF
-booklet downloads), **Browse** (single items with answer key and design
+rule, n, seed, option count; gallery preview; item-set `.rds`, feature-CSV,
+audit-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, logging the chosen option,
 response time and the hover trace of every option, with CSV export) and
 **About**. With **callr** installed, generation runs in a background R

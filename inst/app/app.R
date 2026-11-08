@@ -142,7 +142,7 @@ ui <- page_navbar(
         checkboxInput("feedback", "Show feedback after each answer", TRUE),
         checkboxInput("shuffle_items", "Shuffle item order", FALSE),
         numericInput("max_items", "Items to administer (0 = all)", 0, min = 0, step = 1),
-        fileInput("upload", "Or load an items JSON file", accept = ".json"),
+        fileInput("upload", "Or load a saved item set (.rds)", accept = ".rds"),
         actionButton("start", "Start", class = "btn-primary w-100"),
         hr(),
         uiOutput("admin_status")
@@ -162,8 +162,8 @@ ui <- page_navbar(
           "and every item carries a design-feature record for LLTM-style analyses."),
         p("The perceptual audit renders every option and matrix cell and rejects items in ",
           "which two of them look alike, even when they are nominally different."),
-        p("Items exported as JSON are interchangeable with the Cogitem web application: ",
-          tags$a(href = "https://cahitgs.github.io/itemgen1/", "cahitgs.github.io/itemgen1")),
+        p("Item sets are saved as .rds files (also readable with readRDS() in R) and can be ",
+          "reloaded in the Administer tab."),
         p(class = "cog-muted", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
   )
 )
@@ -281,8 +281,11 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$upload, {
-    res <- tryCatch(cogitem::read_items_json(input$upload$datapath),
-                    error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL })
+    res <- tryCatch({
+      x <- readRDS(input$upload$datapath)
+      if (!inherits(x, "cog_item_set")) stop("The file does not contain a cogitem item set.")
+      x
+    }, error = function(e) { showNotification(conditionMessage(e), type = "error"); NULL })
     if (!is.null(res)) {
       items(res)
       page(1L)
@@ -297,23 +300,18 @@ server <- function(input, output, session) {
     if (is.null(x)) {
       return(div(class = "cog-card cog-muted",
                  "Choose a shape and a rule, then press Generate. ",
-                 "Items can also be loaded from a JSON file in the Administer tab."))
+                 "A saved item set (.rds) can also be loaded in the Administer tab."))
     }
     m <- attr(x, "meta")
-    f <- cogitem::item_features(x)
-    third <- if (isTRUE(m$perceptual)) {
-      value_box("Ambiguous dropped", m$perceptual_skipped %||% 0, theme = "secondary")
-    } else {
-      value_box("Duplicates skipped", m$duplicates_skipped %||% 0, theme = "secondary")
-    }
     layout_columns(
       col_widths = c(3, 3, 3, 3),
       value_box("Items", length(x),
                 if (isTRUE(m$stopped)) sprintf("stopped early (%d requested)", m$n_requested),
                 theme = "primary"),
       value_box("Seed", format(m$seed %||% NA), theme = "secondary"),
-      third,
-      value_box("Mean difficulty", if (nrow(f)) sprintf("%.2f", mean(f$difficulty)) else "-",
+      value_box("Duplicates skipped", m$duplicates_skipped %||% 0, theme = "secondary"),
+      value_box("Ambiguous dropped",
+                if (isTRUE(m$perceptual)) m$perceptual_skipped %||% 0 else "audit off",
                 theme = "secondary")
     )
   })
@@ -334,8 +332,8 @@ server <- function(input, output, session) {
     cards <- lapply(seq_along(idx), function(k) {
       it <- x[[idx[k]]]
       div(class = "cog-thumb",
-          div(class = "cap cog-muted", sprintf("#%d  %s / %s  d%d  answer %d", idx[k], it$shape,
-                                               it$rule, it$difficulty, it$correct)),
+          div(class = "cap cog-muted", sprintf("#%d  %s / %s  answer %d", idx[k], it$shape,
+                                               it$rule, it$correct)),
           plotOutput(paste0("thumb_", k), height = "250px"))
     })
     layout_column_wrap(width = 1 / 3, !!!cards)
@@ -354,7 +352,7 @@ server <- function(input, output, session) {
   output$downloads <- renderUI({
     req(items())
     tagList(
-      downloadButton("dl_json", "Items JSON", class = "btn-sm w-100 mb-1"),
+      downloadButton("dl_items", "Item set (.rds)", class = "btn-sm w-100 mb-1"),
       downloadButton("dl_features", "Features CSV", class = "btn-sm w-100 mb-1"),
       downloadButton("dl_audit", "Audit CSV", class = "btn-sm w-100 mb-1"),
       downloadButton("dl_booklet", "PDF booklet", class = "btn-sm w-100 mb-1")
@@ -365,9 +363,9 @@ server <- function(input, output, session) {
     sprintf("cogitem-%s-%s-%d-s%s", m$shape %||% "mixed", m$rule %||% "mixed",
             length(items()), format(m$seed %||% "na"))
   })
-  output$dl_json <- downloadHandler(
-    filename = function() paste0(stem(), ".json"),
-    content = function(file) cogitem::write_items_json(items(), file)
+  output$dl_items <- downloadHandler(
+    filename = function() paste0(stem(), ".rds"),
+    content = function(file) saveRDS(items(), file)
   )
   output$dl_features <- downloadHandler(
     filename = function() paste0(stem(), "-features.csv"),
@@ -452,28 +450,27 @@ server <- function(input, output, session) {
 
   record <- function(chosen, rt, hovers) {
     it <- current_item()
-    # hover trace in the web-app format: "optionIndex@deltaMs;..." (0-based index,
-    # delta = time since the previous hover)
+    # hover trace "option@deltaMs;..." (1-based option, delta = time since the
+    # previous hover)
     hv <- character(0)
     if (length(hovers)) {
       ts <- vapply(hovers, function(h) as.numeric(h$t), 0)
-      hv <- sprintf("%d@%d", vapply(hovers, function(h) as.integer(h$i) - 1L, 0L),
+      hv <- sprintf("%d@%d", vapply(hovers, function(h) as.integer(h$i), 0L),
                     as.integer(c(0, diff(ts))))
     }
     admin$log[[length(admin$log) + 1]] <- data.frame(
       participant = input$participant,
-      questionNumber = admin$pos,
-      itemId = it$id,
+      item_number = admin$pos,
+      item_id = it$id,
       rule = it$rule,
       shape = it$shape,
-      difficulty = it$difficulty,
-      correctIndex = it$correct - 1L,
-      chosenIndex = if (is.na(chosen)) -1L else chosen - 1L,
+      correct_option = it$correct,
+      chosen_option = if (is.na(chosen)) NA_integer_ else as.integer(chosen),
       skipped = is.na(chosen),
       correct = !is.na(chosen) && chosen == it$correct,
-      durationMs = as.integer(rt),
-      hoverCount = length(hovers),
-      hoverTrace = paste(hv, collapse = ";"),
+      rt_ms = as.integer(rt),
+      hover_count = length(hovers),
+      hover_trace = paste(hv, collapse = ";"),
       stringsAsFactors = FALSE
     )
   }
@@ -578,8 +575,8 @@ server <- function(input, output, session) {
 
   output$admin_results <- renderTable({
     res <- do.call(rbind, admin$log)
-    res[, c("questionNumber", "rule", "shape", "difficulty", "chosenIndex", "correct",
-            "durationMs", "hoverCount")]
+    res[, c("item_number", "rule", "shape", "chosen_option", "correct", "rt_ms",
+            "hover_count")]
   }, striped = TRUE, spacing = "xs")
 
   output$dl_results <- downloadHandler(
