@@ -17,6 +17,10 @@
   column.
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
+* Two-layer items (`generate_layered()`, `layer_shapes()`, `layer_rules()`):
+  an outer and an inner carrier with their own rules superimposed cell by
+  cell, as `com()` does in matRiks; distractors are wrong in the inner
+  layer, in the outer layer or in both.
 * grid-based rendering (`plot()`, `shape_grob()`,
   `matrix_grob()`, `options_grob()`), export to PNG/PDF/SVG and PDF booklets
   (`save_item()`, `save_items()`, `save_booklet()`).

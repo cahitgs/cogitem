@@ -101,10 +101,30 @@ linear logistic test models (`eRm::LLTM()`), explanatory IRT models
 empirical item difficulty. The package assigns no a priori difficulty rating
 on purpose: difficulty is to be estimated from response data.
 
+## Two-layer items
+
+`generate_layered()` superimposes two independently generated matrices cell
+by cell, as `com()` does in matRiks: an outer carrier (`polygon` or
+`spike-ring`, drawn large with a free centre) and an inner carrier drawn on a
+small disc in the middle, each following its own rule. Solving the item
+requires both rules, the classic "number of rules" manipulation of
+matrix-item difficulty (Carpenter, Just & Shell, 1990). Every distractor is
+wrong in the inner layer, in the outer layer or in both, and the design
+features record which (`distractor_tiers`, `outer_rule`, `inner_rule`,
+`n_layers`).
+
+```r
+items <- generate_layered(outer = c("polygon", "progression"),
+                          inner = c("dice", "dist-of-3"), n = 10, seed = 1)
+plot(items[[1]], show_answer = TRUE)
+layer_shapes("inner")
+layer_rules("dice")
+```
+
 ## Shiny application
 
 `run_app()` opens an application with four panels: **Generate** (shape,
-rule, n, seed, option count; gallery preview; item-set `.rds`, feature-CSV,
+rule, optional inner layer, n, seed, option count; gallery preview; item-set `.rds`, feature-CSV,
 audit-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, logging the chosen option,
 response time and the hover trace of every option, with CSV export) and

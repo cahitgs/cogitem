@@ -9,6 +9,8 @@ shapes <- cogitem::cog_shapes()
 rules <- cogitem::cog_rules()
 shape_choices <- stats::setNames(shapes, cogitem::shape_labels()[shapes])
 rule_choices_all <- stats::setNames(rules, cogitem::rule_labels()[rules])
+outer_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("outer")]
+inner_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("inner")]
 THUMBS_PER_PAGE <- 12
 MAX_OPTIONS <- 8
 BASE_FONT <- "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
@@ -31,10 +33,18 @@ generate_worker <- function(root, args, progress_file, stop_file) {
     writeLines(sprintf("%d %d %d", done, n, attempts), progress_file)
     !file.exists(stop_file)
   }
+  gen <- if (isTRUE(args$layered)) {
+    function() cogitem::generate_layered(c(args$shape, args$rule),
+                                         c(args$inner_shape, args$inner_rule),
+                                         n = args$n, seed = args$seed, n_options = args$n_options,
+                                         perceptual = args$perceptual, progress = progress)
+  } else {
+    function() cogitem::generate_items(args$shape, args$rule, n = args$n, seed = args$seed,
+                                       n_options = args$n_options, perceptual = args$perceptual,
+                                       progress = progress)
+  }
   items <- withCallingHandlers(
-    cogitem::generate_items(args$shape, args$rule, n = args$n, seed = args$seed,
-                            n_options = args$n_options, perceptual = args$perceptual,
-                            progress = progress),
+    gen(),
     warning = function(w) {
       warnings <<- c(warnings, conditionMessage(w))
       invokeRestart("muffleWarning")
@@ -48,6 +58,18 @@ read_progress <- function(file) {
                                  error = function(e) NULL))
   if (length(v) != 3 || anyNA(v)) return(NULL)
   list(done = v[1], n = v[2], attempts = v[3])
+}
+
+generate_from_args <- function(args, progress = NULL) {
+  if (isTRUE(args$layered)) {
+    cogitem::generate_layered(c(args$shape, args$rule), c(args$inner_shape, args$inner_rule),
+                              n = args$n, seed = args$seed, n_options = args$n_options,
+                              perceptual = args$perceptual, progress = progress)
+  } else {
+    cogitem::generate_items(args$shape, args$rule, n = args$n, seed = args$seed,
+                            n_options = args$n_options, perceptual = args$perceptual,
+                            progress = progress)
+  }
 }
 
 app_theme <- bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
@@ -100,6 +122,12 @@ ui <- page_navbar(
         width = 330,
         selectInput("shape", "Shape", shape_choices, selected = "annulus"),
         selectInput("rule", "Rule", rule_choices_all, selected = "dist-of-3"),
+        checkboxInput("layered", "Two layers: inner figure with its own rule", FALSE),
+        conditionalPanel(
+          "input.layered",
+          selectInput("inner_shape", "Inner shape", inner_shape_choices, selected = "dice"),
+          selectInput("inner_rule", "Inner rule", rule_choices_all, selected = "dist-of-3")
+        ),
         numericInput("n", "Number of items", 20, min = 1, max = 5000, step = 1),
         textInput("seed", "Seed (blank = random)", ""),
         sliderInput("n_options", "Response options", min = 2, max = 8, value = 4, step = 1),
@@ -172,11 +200,25 @@ server <- function(input, output, session) {
   `%||%` <- function(a, b) if (is.null(a)) b else a
   items <- reactiveVal(getOption("cogitem.preloaded"))
   page <- reactiveVal(1L)
-  # Keep the rule list consistent with the selected shape.
-  observeEvent(input$shape, {
-    ok <- cogitem::supported_rules(input$shape)
+  # Two-layer mode restricts the (outer) shape to hollow carriers.
+  observeEvent(input$layered, {
+    choices <- if (isTRUE(input$layered)) outer_shape_choices else shape_choices
+    sel <- if (isTRUE(input$shape %in% choices)) input$shape else choices[[1]]
+    updateSelectInput(session, "shape", choices = choices, selected = sel)
+  }, ignoreInit = TRUE)
+
+  # Keep the rule lists consistent with the selected shapes.
+  observeEvent(list(input$shape, input$layered), {
+    req(input$shape)
+    ok <- if (isTRUE(input$layered)) cogitem::layer_rules(input$shape) else cogitem::supported_rules(input$shape)
     sel <- if (isTRUE(input$rule %in% ok)) input$rule else ok[1]
     updateSelectInput(session, "rule", choices = rule_choices_all[rule_choices_all %in% ok],
+                      selected = sel)
+  })
+  observeEvent(input$inner_shape, {
+    ok <- cogitem::layer_rules(input$inner_shape)
+    sel <- if (isTRUE(input$inner_rule %in% ok)) input$inner_rule else ok[1]
+    updateSelectInput(session, "inner_rule", choices = rule_choices_all[rule_choices_all %in% ok],
                       selected = sel)
   })
 
@@ -196,7 +238,8 @@ server <- function(input, output, session) {
     seed <- suppressWarnings(as.integer(input$seed))
     list(shape = input$shape, rule = input$rule, n = as.integer(input$n),
          seed = if (is.na(seed)) NULL else seed, n_options = as.integer(input$n_options),
-         perceptual = isTRUE(input$perceptual))
+         perceptual = isTRUE(input$perceptual), layered = isTRUE(input$layered),
+         inner_shape = input$inner_shape, inner_rule = input$inner_rule)
   }
 
   observeEvent(input$generate, {
@@ -206,7 +249,7 @@ server <- function(input, output, session) {
       # synchronous fallback (no Stop button)
       withProgress(message = "Generating items...", value = 0.3, {
         res <- tryCatch(
-          withCallingHandlers(do.call(cogitem::generate_items, args), warning = function(w) {
+          withCallingHandlers(generate_from_args(args), warning = function(w) {
             showNotification(conditionMessage(w), type = "warning", duration = 8)
             invokeRestart("muffleWarning")
           }),

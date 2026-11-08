@@ -18,7 +18,8 @@ generation time: the rule and its family, the figural carrier, the number
 of options, how the distractors were constructed and rule-specific
 parameters (varying axis,
 progression axes, rotation step, mirror axis, operator, operands, bit
-count). These columns are the natural predictors for a linear logistic test
+count), plus the number of layers and the shape and rule of each layer of
+two-layer items (\code{\link[=generate_layered]{generate_layered()}}). These columns are the natural predictors for a linear logistic test
 model (LLTM) or an explanatory IRT model of empirical item difficulty.
 }
 \examples{

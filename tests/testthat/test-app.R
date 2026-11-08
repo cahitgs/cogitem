@@ -50,5 +50,18 @@ test_that("the Shiny server logic generates, browses and administers items", {
     expect_equal(res$correct, c(TRUE, FALSE, FALSE))
     expect_true(is.na(res$chosen_option[2]))
     expect_true(grepl("Finished", output$admin_ui$html))
+
+    # Two-layer generation
+    session$setInputs(layered = TRUE, shape = "polygon", rule = "dist-of-3",
+                      inner_shape = "dice", inner_rule = "progression", n = 2, seed = "2")
+    items(NULL)
+    session$setInputs(generate = 2)
+    for (k in 1:300) {
+      if (!is.null(items())) break
+      Sys.sleep(0.2)
+      session$elapse(400)
+    }
+    expect_equal(items()[[1]]$type, "layered")
+    expect_equal(items()[[1]]$shape, "polygon+dice")
   })
 })

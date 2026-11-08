@@ -164,7 +164,7 @@ cell_pairs <- function(item) {
     add(at(r, i), at(r, j), sprintf("r%dc%d-r%dc%d", r, i, r, j))
   }
   # columns carry the rule too, except for the row-wise arithmetic/logic rules
-  if (!(item$rule %in% ROW_ONLY_RULES)) {
+  if (!(item$rule %in% ROW_ONLY_RULES) && !isTRUE(item$meta$row_only)) {
     for (c in 1:3) for (i in 1:2) for (j in (i + 1):3) {
       add(at(i, c), at(j, c), sprintf("r%dc%d-r%dc%d", i, c, j, c))
     }

@@ -114,7 +114,7 @@ new_item_set <- function(items, meta = list()) {
 #' items[[1]]
 #' plot(items[[1]])
 #' @seealso [generate_item()], [generate_mixed()], [item_features()],
-#'   [audit_items()], [run_app()]
+#'   [generate_layered()], [audit_items()], [run_app()]
 #' @export
 generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
                            max_attempts = NULL, perceptual = FALSE,
@@ -131,6 +131,28 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
   n_options <- as.integer(n_options)
   seed <- as.integer(seed %||% random_seed())
   max_attempts <- as.integer(max_attempts %||% max(100, n * 8))
+
+  res <- generate_loop(function() generate_one(shape, rule, n_options),
+                       n, seed, n_options, max_attempts, perceptual, perceptual_threshold,
+                       progress, what = sprintf("%s/%s", shape, rule))
+
+  new_item_set(res$items, meta = list(
+    shape = shape, rule = rule, n_requested = n, seed = seed,
+    n_options = n_options, duplicates_skipped = res$duplicates,
+    invalid_skipped = res$invalid, perceptual = perceptual,
+    perceptual_threshold = if (perceptual) perceptual_threshold else NA_real_,
+    perceptual_skipped = res$ambiguous, attempts = res$attempts,
+    stopped = res$stopped,
+    reached_ceiling = length(res$items) < n && !res$stopped
+  ))
+}
+
+# Shared rejection-sampling loop. `make()` returns one candidate item or
+# signals an error; a candidate is kept when it is valid, new (by
+# item_signature()) and, if requested, passes the perceptual audit. Runs
+# under the seed so that the same arguments always give the same items.
+generate_loop <- function(make, n, seed, n_options, max_attempts, perceptual,
+                          perceptual_threshold, progress, what) {
   if (!is.null(progress)) stopifnot(is.function(progress))
   report <- function(done, attempts) {
     if (is.null(progress)) return(TRUE)
@@ -154,7 +176,7 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
         break
       }
       attempts <- attempts + 1L
-      p <- tryCatch(generate_one(shape, rule, n_options), error = function(e) {
+      p <- tryCatch(make(), error = function(e) {
         last_error <<- conditionMessage(e)
         NULL
       })
@@ -188,24 +210,15 @@ generate_items <- function(shape, rule, n = 10, seed = NULL, n_options = 4,
   })
 
   if (length(res$items) < n && !res$stopped) {
-    msg <- sprintf("Only %d of %d requested %s/%s items could be generated (%d attempts, %d duplicates, %d invalid, %d perceptually ambiguous).",
-                   length(res$items), n, shape, rule, res$attempts, res$duplicates,
+    msg <- sprintf("Only %d of %d requested %s items could be generated (%d attempts, %d duplicates, %d invalid, %d perceptually ambiguous).",
+                   length(res$items), n, what, res$attempts, res$duplicates,
                    res$invalid, res$ambiguous)
     if (length(res$items) == 0 && !is.null(res$last_error)) {
       msg <- paste0(msg, " Last generator error: ", res$last_error)
     }
     warning(msg, call. = FALSE)
   }
-
-  new_item_set(res$items, meta = list(
-    shape = shape, rule = rule, n_requested = n, seed = seed,
-    n_options = n_options, duplicates_skipped = res$duplicates,
-    invalid_skipped = res$invalid, perceptual = perceptual,
-    perceptual_threshold = if (perceptual) perceptual_threshold else NA_real_,
-    perceptual_skipped = res$ambiguous, attempts = res$attempts,
-    stopped = res$stopped,
-    reached_ceiling = length(res$items) < n && !res$stopped
-  ))
+  res
 }
 
 #' Generate a single item

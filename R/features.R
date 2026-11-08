@@ -4,6 +4,13 @@ RULE_DERIVED_TIERS <- c(
   "perpendicular", "overshoot", "unmirrored", "wrong-axis", "off-45"
 )
 
+# A distractor counts as rule-derived when every manipulation it carries is
+# a rule-specific candidate (two-layer tiers look like "inner:x" or "both:x+y").
+tier_is_rule_derived <- function(tier) {
+  parts <- strsplit(sub("^[a-z]+:", "", tier), "+", fixed = TRUE)[[1]]
+  length(parts) > 0 && all(parts %in% RULE_DERIVED_TIERS)
+}
+
 as_item_list <- function(x) {
   if (inherits(x, "cog_item")) return(list(x))
   if (inherits(x, "cog_item_set")) return(unclass(x))
@@ -28,7 +35,8 @@ meta_num <- function(m, name) {
 #' of options, how the distractors were constructed and rule-specific
 #' parameters (varying axis,
 #' progression axes, rotation step, mirror axis, operator, operands, bit
-#' count). These columns are the natural predictors for a linear logistic test
+#' count), plus the number of layers and the shape and rule of each layer of
+#' two-layer items ([generate_layered()]). These columns are the natural predictors for a linear logistic test
 #' model (LLTM) or an explanatory IRT model of empirical item difficulty.
 #'
 #' @param x A `cog_item`, a `cog_item_set` or a list of items.
@@ -44,16 +52,19 @@ item_features <- function(x) {
     tiers <- it$meta$distractor_tiers
     if (is.null(tiers)) tiers <- character(0)
     dtiers <- tiers[tiers != "correct"]
+    rule_derived <- vapply(dtiers, tier_is_rule_derived, logical(1))
     m <- it$meta %||% list()
     data.frame(
       id = it$id,
       shape = it$shape,
       rule = it$rule,
-      rule_family = unname(RULE_FAMILY[it$rule]) %||% NA_character_,
+      rule_family = if (identical(it$type, "layered")) "layered" else
+        unname(RULE_FAMILY[it$rule]) %||% NA_character_,
       n_options = it$n_options,
       correct_position = it$correct,
-      n_rule_distractors = sum(dtiers %in% RULE_DERIVED_TIERS),
-      n_perturbation_distractors = sum(!(dtiers %in% RULE_DERIVED_TIERS)),
+      n_layers = if (identical(it$type, "layered")) 2L else 1L,
+      n_rule_distractors = sum(rule_derived),
+      n_perturbation_distractors = sum(!rule_derived),
       distractor_tiers = paste(dtiers, collapse = ";"),
       axis = meta_chr(m, "axis"),
       primary_axis = meta_chr(m, "primary_axis"),
@@ -63,6 +74,10 @@ item_features <- function(x) {
       operator = meta_chr(m, "operator"),
       operands = meta_chr(m, "operands"),
       bit_count = meta_num(m, "bit_count"),
+      outer_shape = meta_chr(m$outer %||% list(), "shape"),
+      outer_rule = meta_chr(m$outer %||% list(), "rule"),
+      inner_shape = meta_chr(m$inner %||% list(), "shape"),
+      inner_rule = meta_chr(m$inner %||% list(), "rule"),
       stringsAsFactors = FALSE
     )
   })

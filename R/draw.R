@@ -91,6 +91,7 @@ rect_tl <- function(x, y, w, h, gp, vp = NULL) {
 
 build_shape <- function(s, lw) {
   if (is_blank_cell(s)) return(gList())
+  if (is_stack(s)) return(build_stack(s, lw))
   stroke <- css_color(s$stroke)
   fill <- css_color(s$fill)
   p <- s$params

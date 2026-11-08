@@ -15,6 +15,10 @@
 #' identical(visual_signature(a), visual_signature(b)) # TRUE: a square
 #' @export
 visual_signature <- function(s) {
+  if (is_stack(s)) {
+    return(sprintf("stack[%s|%s]", visual_signature(s$layers[[1]]),
+                   visual_signature(s$layers[[2]])))
+  }
   nms <- sort(names(s$params))
   params <- paste0(nms, "=", vapply(nms, function(k) fmt_num(s$params[[k]]), ""),
                    collapse = ",")
@@ -148,5 +152,13 @@ pattern_confusable <- function(a, b) {
 # Nominally different but not reliably distinguishable by eye (symbolic rules).
 confusable <- function(a, b) {
   if (visual_signature(a) == visual_signature(b)) return(FALSE)
+  if (is_stack(a) && is_stack(b)) {
+    # two stacks are confusable when every layer is identical or confusable
+    return(all(vapply(1:2, function(k) {
+      x <- a$layers[[k]]
+      y <- b$layers[[k]]
+      visual_signature(x) == visual_signature(y) || confusable(x, y)
+    }, logical(1))))
+  }
   count_confusable(a, b) || pattern_confusable(a, b)
 }

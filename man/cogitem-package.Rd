@@ -8,7 +8,8 @@
 \description{
 Generate, validate, draw, export and administer 3x3 figural matrix items
 built from an explicit item model (15 shape families x 13 relational
-rules). Start with \code{\link[=generate_items]{generate_items()}}, look at items with \code{\link[=plot.cog_item]{plot.cog_item()}},
+rules). Start with \code{\link[=generate_items]{generate_items()}} (one rule per item) or
+\code{\link[=generate_layered]{generate_layered()}} (two rules), look at items with \code{\link[=plot.cog_item]{plot.cog_item()}},
 extract design features with \code{\link[=item_features]{item_features()}} and \code{\link[=q_matrix]{q_matrix()}}, keep item
 banks with \code{\link[=saveRDS]{saveRDS()}} and administer them with \code{\link[=run_app]{run_app()}}.
 }
