@@ -39,6 +39,38 @@ rotate_mask_cw <- function(mask, steps) {
   sum(c(1L, 2L, 4L, 8L)[spokes]) + sum(c(16L, 32L)[diags])
 }
 
+gcd2 <- function(a, b) if (b == 0) a else gcd2(b, a %% b)
+lcm2 <- function(a, b) a * b / gcd2(a, b)
+
+# Sector count and per-sector textures of a pie (legacy fillMask accepted).
+pie_params <- function(p) {
+  n <- clamp(round(p$sectorCount %||% 6), 2, 8)
+  packed <- p$sectorPatterns %||%
+    (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
+  list(n = as.integer(n), pats = as.integer(unpack_sector_patterns(packed, n)))
+}
+
+# Indices k of the visible dividers of a pie (divider k sits at k * 360 / n,
+# between sectors k and k + 1). The divider between two solid sectors is
+# invisible: both are filled with the stroke colour and the edge is drawn in
+# the same colour.
+pie_visible_boundaries <- function(pats) {
+  nxt <- c(pats[-1], pats[1])
+  which(!(pats == 1 & nxt == 1))
+}
+
+# The pie re-expressed with the smallest sector count whose grid carries
+# every visible divider, so that pies drawing the same picture share one
+# signature (an all-solid pie of 2 or 5 sectors is the same disc).
+pie_canonical <- function(n, pats) {
+  ks <- pie_visible_boundaries(pats)
+  if (!length(ks)) return(list(n = 2L, pats = c(1L, 1L)))
+  m <- 1
+  for (k in ks) m <- lcm2(m, n / gcd2(k, n))
+  m <- as.integer(max(m, 2))
+  list(n = m, pats = vapply(seq_len(m), function(j) pats[floor((j - 0.5) / m * n) + 1], integer(1)))
+}
+
 # Do all textures of a sector pie look the same after rotating by theta
 # degrees? Solid, empty and dots at any angle, cross-hatch at multiples of 90,
 # parallel and diagonal lines only at 180.
@@ -86,18 +118,19 @@ canonical_shape <- function(s) {
     s$params$orientation <- 0
     s$rotation <- (rot + c(0, 90, 45)[orientation + 1]) %% 180
   } else if (s$kind == "sector-pie") {
-    n <- clamp(round(p$sectorCount %||% 6), 2, 8)
+    pp <- pie_params(p)
+    can <- pie_canonical(pp$n, pp$pats)
+    n <- can$n
+    pats <- can$pats
+    s$params$sectorCount <- n
+    s$params$sectorPatterns <- pack_sector_patterns(pats)
+    s$params$fillMask <- NULL
     turns <- rot / (360 / n)
-    if (abs(turns - round(turns)) < 1e-6 && round(turns) %% n != 0) {
-      packed <- p$sectorPatterns %||%
-        (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
-      pats <- unpack_sector_patterns(packed, n)
-      if (textures_invariant(pats, rot)) {
-        sh <- round(turns) %% n
-        s$params$sectorPatterns <- pack_sector_patterns(pats[((seq_len(n) - 1 - sh) %% n) + 1])
-        s$params$fillMask <- NULL
-        s$rotation <- 0
-      }
+    if (abs(turns - round(turns)) < 1e-6 && round(turns) %% n != 0 &&
+        textures_invariant(pats, rot)) {
+      sh <- round(turns) %% n
+      s$params$sectorPatterns <- pack_sector_patterns(pats[((seq_len(n) - 1 - sh) %% n) + 1])
+      s$rotation <- 0
     }
   }
   s
@@ -228,6 +261,7 @@ sector_pie_fold <- function(p) {
   packed <- p$sectorPatterns %||%
     (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
   pats <- unpack_sector_patterns(packed, n)
+  if (all(pats == 1)) return(360) # a solid disc
   invariant <- function(theta) textures_invariant(pats, theta)
   for (d in seq(n, 2)) {
     if (n %% d != 0) next
@@ -282,14 +316,78 @@ count_stripped_signature <- function(s) {
 }
 
 # TRUE when a and b differ only by an imperceptibly small count.
+# Sector pies that draw the same textures over the same angles and differ
+# only in divider lines running through hatched or dotted sectors: such lines
+# are too faint against the texture to be counted (uniform horizontal lines
+# with 2 vs 3 sectors score 0.15, cross-hatch 0.12, 2 vs 4 sectors 0.06).
+# Dividers through empty sectors are clearly visible, and dividers between
+# solid sectors do not exist (see pie_canonical()).
+pie_divider_confusable <- function(a, b) {
+  a <- canonical_shape(a)
+  b <- canonical_shape(b)
+  if ((a$rotation - b$rotation) %% 360 != 0) return(FALSE)
+  pa <- pie_params(a$params)
+  pb <- pie_params(b$params)
+  if (identical(pa, pb)) return(FALSE)
+  neutral <- function(s) {
+    s$params$sectorCount <- 2
+    s$params$sectorPatterns <- 0
+    s$rotation <- 0
+    visual_signature(s)
+  }
+  if (neutral(a) != neutral(b)) return(FALSE)
+  grid <- 840L # lcm of the sector counts 2..8
+  tex <- function(p) p$pats[floor((seq_len(grid) - 0.5) / grid * p$n) + 1]
+  ta <- tex(pa)
+  if (!identical(ta, tex(pb))) return(FALSE)
+  bounds <- function(p) pie_visible_boundaries(p$pats) * (grid %/% p$n)
+  ba <- bounds(pa)
+  bb <- bounds(pb)
+  only_one <- c(setdiff(ba, bb), setdiff(bb, ba))
+  length(only_one) > 0 && all(ta[(only_one %% grid) + 1] >= 2)
+}
+
+# The side count of the inner polygon of a nested polygon is hard to read
+# when the inner radius (cell units) is small: at radius 17, 4 vs 6 sides
+# score 0.15-0.17, 6 vs 8 0.11; below radius 15 every pair without a
+# triangle stays below 0.15; from radius 19 the full-size polygon rule
+# (two sides from seven on) applies.
+nested_inner_confusable <- function(a, b) {
+  ia <- round(a$params$innerSides %||% 4)
+  ib <- round(b$params$innerSides %||% 4)
+  if (ia == ib) return(FALSE)
+  if (visual_signature(shape_param(a, "innerSides", 4)) !=
+      visual_signature(shape_param(b, "innerSides", 4))) return(FALSE)
+  lo <- min(ia, ib)
+  d <- abs(ia - ib)
+  if (lo <= 3) return(FALSE)
+  r <- 45 * min(a$size, b$size) * clamp(a$params$innerScale %||% 0.5, 0.25, 0.75)
+  if (r < 15) return(TRUE)
+  if (r < 19) return(d < 3)
+  max(ia, ib) >= 7 && d < 2
+}
+
+# Spikes shorter than 6 cell units or closer together than 9 units cannot be
+# counted; two such rings with 8 or more spikes each look alike (16 vs 10
+# spikes at size 0.55 and depth 0.2 score 0.15).
+spikes_illegible <- function(a, b, av, bv) {
+  size <- min(a$size, b$size)
+  amplitude <- (a$params$spikeDepth %||% 0.35) * 45 * size
+  legible <- function(cnt) amplitude >= 6 && 2 * pi * 45 * size / cnt >= 9
+  !(legible(av) && legible(bv)) && min(av, bv) >= 8
+}
+
 count_confusable <- function(a, b) {
   if (a$kind != b$kind) return(FALSE)
+  if (a$kind == "sector-pie" && pie_divider_confusable(a, b)) return(TRUE)
+  if (a$kind == "nested-polygon" && nested_inner_confusable(a, b)) return(TRUE)
   spec <- PRIMARY_PARAM[[a$kind]]
   if (is.null(spec)) return(FALSE)
   av <- round(a$params[[spec$name]] %||% spec$min)
   bv <- round(b$params[[spec$name]] %||% spec$min)
   if (av == bv) return(FALSE)
   if (count_stripped_signature(a) != count_stripped_signature(b)) return(FALSE)
+  if (a$kind == "spike-ring" && spikes_illegible(a, b, av, bv)) return(TRUE)
   abs(av - bv) < min_perceptible_count_delta(a$kind, max(av, bv), min(a$size, b$size),
                                              min(a$strokeWidth, b$strokeWidth))
 }

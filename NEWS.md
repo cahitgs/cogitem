@@ -35,6 +35,12 @@
   exactly one answer per item (late clicks are ignored).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
+* Sector pies are compared by what they draw: dividers between solid sectors
+  are invisible, so an all-solid pie has one signature whatever its sector
+  count, and dividers running through hatched or dotted sectors do not count
+  as a difference. The side count of a small inner polygon (nested polygons)
+  and the number of shallow or crowded spikes (spike rings) are treated as
+  unreadable, calibrated with the perceptual audit.
 * Two-layer items work with any option count from 2 to 8: each layer is
   generated with at most four options and the composed distractors are drawn
   from the combinations of the layers' wrong options (previously the outer

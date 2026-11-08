@@ -83,7 +83,7 @@ test_that("rotation symmetry of pattern carriers follows the pattern", {
   pie <- function(pats, rotation = 0) cog_shape("sector-pie", list(sectorCount = length(pats), sectorPatterns = cogitem:::pack_sector_patterns(pats)), rotation = rotation)
   expect_equal(rotation_symmetry_fold(pie(c(1, 0, 1, 0))), 2)
   expect_equal(rotation_symmetry_fold(pie(c(3, 3, 3, 3))), 2)  # horizontal lines: 180 only
-  expect_equal(rotation_symmetry_fold(pie(c(1, 1, 1, 1))), 4)
+  expect_equal(rotation_symmetry_fold(pie(c(1, 1, 1, 1))), 360) # all solid: a disc
   expect_equal(rotation_symmetry_fold(pie(c(7, 7, 7, 7, 7, 7, 7, 7))), 4)  # cross-hatch: 90
   expect_equal(rotation_symmetry_fold(pie(c(1, 2, 0, 0, 0))), 1)
   expect_identical(visual_signature(pie(c(1, 0, 1, 0))), visual_signature(pie(c(1, 0, 1, 0), 180)))
@@ -179,5 +179,39 @@ test_that("quarter turns are folded into the signature of pattern carriers", {
   expect_lt(perceptual_distance(gd(2, 3, 90), gd(3, 2)), 0.01)
   it <- generate_item("block-letter", "identity", seed = 1008 + which(supported_combinations()$shape == "block-letter" & supported_combinations()$rule == "identity"), n_options = 8)
   expect_gt(audit_item(it)$min_option_distance, 0.1)
+})
+
+test_that("sector pies are compared by what they draw", {
+  pie <- function(n, pats, rot = 0) cog_shape("sector-pie", list(sectorCount = n, sectorPatterns = cogitem:::pack_sector_patterns(pats)), rotation = rot)
+  # dividers between solid sectors are invisible: all-solid pies are one disc
+  expect_identical(visual_signature(pie(2, c(1, 1))), visual_signature(pie(5, rep(1, 5))))
+  expect_identical(visual_signature(pie(3, c(1, 1, 1))), visual_signature(pie(3, c(1, 1, 1), rot = 30)))
+  # a divider through an empty half is visible
+  expect_false(identical(visual_signature(pie(2, c(1, 0))), visual_signature(pie(4, c(1, 1, 0, 0)))))
+  expect_false(cogitem:::confusable(pie(2, c(1, 0)), pie(4, c(1, 1, 0, 0))))
+  expect_false(cogitem:::confusable(pie(2, c(0, 0)), pie(3, c(0, 0, 0))))
+  # dividers through hatched sectors are too faint to count
+  expect_true(cogitem:::confusable(pie(2, c(3, 3)), pie(3, c(3, 3, 3))))
+  expect_true(cogitem:::confusable(pie(2, c(7, 7)), pie(4, c(7, 7, 7, 7))))
+  expect_true(cogitem:::count_confusable(pie(2, c(3, 3)), pie(3, c(3, 3, 3))))
+  expect_false(cogitem:::confusable(pie(2, c(3, 0)), pie(4, c(3, 3, 0, 0))))
+  expect_false(cogitem:::confusable(pie(2, c(3, 3)), pie(2, c(3, 4))))
+  expect_false(cogitem:::confusable(pie(2, c(4, 5)), pie(3, c(4, 5, 4))))
+})
+
+test_that("small inner polygons and shallow or crowded spikes cannot be counted", {
+  nested <- function(inner, size = 0.75, scale = 0.5) cog_shape("nested-polygon", list(outerSides = 5, innerSides = inner, innerScale = scale), size = size, strokeWidth = 2)
+  expect_true(cogitem:::confusable(nested(4), nested(6)))          # inner radius 17
+  expect_false(cogitem:::confusable(nested(3), nested(6)))         # a triangle always shows
+  expect_false(cogitem:::confusable(nested(4), nested(7)))         # three sides more
+  expect_false(cogitem:::confusable(nested(4, 0.9, 0.6), nested(6, 0.9, 0.6)))  # radius 24
+  expect_true(cogitem:::confusable(nested(6, 0.9, 0.6), nested(7, 0.9, 0.6)))
+  expect_true(cogitem:::confusable(nested(4, 0.6, 0.35), nested(8, 0.6, 0.35)))  # radius 9
+  spikes <- function(n, size, depth) cog_shape("spike-ring", list(spikeCount = n, spikeDepth = depth), size = size, strokeWidth = 2)
+  expect_true(cogitem:::confusable(spikes(10, 0.55, 0.2), spikes(16, 0.55, 0.2)))
+  expect_false(cogitem:::confusable(spikes(4, 0.55, 0.2), spikes(8, 0.55, 0.2)))
+  expect_false(cogitem:::confusable(spikes(10, 0.75, 0.35), spikes(16, 0.75, 0.35)))
+  expect_true(cogitem:::confusable(spikes(12, 0.45, 0.5), spikes(16, 0.45, 0.5)))
+  expect_false(cogitem:::confusable(spikes(12, 0.75, 0.2), spikes(16, 0.75, 0.2)))
 })
 
