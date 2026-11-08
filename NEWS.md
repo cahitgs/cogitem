@@ -35,6 +35,12 @@
   exactly one answer per item (late clicks are ignored).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
+* Redesigned Shiny interface: grouped sidebar forms, an empty state, a
+  statistics strip and item gallery after generation, design features and
+  audit result next to the browsed item, a test-mode administration with
+  numbered options, keyboard shortcuts (1-8, Enter) and a results summary.
+  Bundled typefaces (Fraunces, Manrope; SIL OFL), package logo in the header
+  and as favicon; the display accent follows the logo (ink blue).
 * Sector pies are compared by what they draw: dividers between solid sectors
   are invisible, so an all-solid pie has one signature whatever its sector
   count, and dividers running through hatched or dotted sectors do not count

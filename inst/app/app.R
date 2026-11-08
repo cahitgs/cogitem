@@ -13,7 +13,6 @@ outer_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("o
 inner_shape_choices <- shape_choices[shape_choices %in% cogitem::layer_shapes("inner")]
 THUMBS_PER_PAGE <- 12
 MAX_OPTIONS <- 8
-BASE_FONT <- "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 PKG_ROOT <- local({
   # under pkgload the shimmed system.file() may return inst/; use the source root
   root <- system.file(package = "cogitem")
@@ -72,98 +71,79 @@ generate_from_args <- function(args, progress = NULL) {
   }
 }
 
-app_theme <- bs_theme(version = 5, bg = "#ffffff", fg = "#18181b", primary = "#6d28d9",
-                      secondary = "#e4e4e7", success = "#047857", danger = "#b91c1c",
-                      base_font = BASE_FONT)
 
-css <- "
-.cog-card { border: 1px solid #d4d4d8; border-radius: 12px; padding: 12px; background: #f4f4f5; }
-.cog-thumb { border: 1px solid #d4d4d8; border-radius: 10px; padding: 6px; background: #f4f4f5; }
-.cog-thumb .cap { font-size: 0.75rem; padding: 2px 6px; }
-.cog-opt { display: inline-block; width: 136px; height: 136px; margin: 6px; border-radius: 10px;
-           border: 2px solid #e4e4e7; background: #ffffff; cursor: pointer; }
-.cog-opt:hover { border-color: #6d28d9; }
-.cog-opt.disabled { cursor: default; }
-.cog-opt.disabled:hover { border-color: #e4e4e7; }
-.cog-opt.correct, .cog-opt.disabled.correct:hover { border-color: #047857; }
-.cog-opt.wrong, .cog-opt.disabled.wrong:hover { border-color: #b91c1c; }
-.cog-muted { opacity: 0.7; }
-"
+app_theme <- bs_theme(
+  version = 5, bg = "#ffffff", fg = "#1f2430", primary = "#2f4f8f", secondary = "#d9dfe8",
+  success = "#047857", danger = "#b91c1c",
+  base_font = font_collection("Manrope", "system-ui", "sans-serif"),
+  heading_font = font_collection("Fraunces", "Georgia", "serif"),
+  font_scale = 0.95, "border-radius" = "0.5rem"
+)
 
-js <- "
-window.cogStart = Date.now(); window.cogHovers = []; window.cogItem = 0; window.cogLocked = false;
-Shiny.addCustomMessageHandler('cog-item-start', function(m) {
-  window.cogStart = Date.now(); window.cogHovers = [];
-  window.cogItem = m.item; window.cogLocked = false;
-});
-function cogHover(i) {
-  if (!window.cogHovers) window.cogHovers = [];
-  window.cogHovers.push({i: i, t: Date.now() - window.cogStart});
-}
-// One answer per item: the first click locks the options until the server
-// starts the next item, and every event names the item it belongs to.
-function cogPick(i, enabled) {
-  if (!enabled || window.cogLocked) return;
-  window.cogLocked = true;
-  Shiny.setInputValue('admin_pick', {i: i, item: window.cogItem, rt: Date.now() - window.cogStart,
-    hovers: window.cogHovers || []}, {priority: 'event'});
-}
-function cogSkip() {
-  if (window.cogLocked) return;
-  window.cogLocked = true;
-  Shiny.setInputValue('admin_skip', {item: window.cogItem, rt: Date.now() - window.cogStart,
-    hovers: window.cogHovers || []}, {priority: 'event'});
-}
-"
+section <- function(title, class = NULL) h2(class = paste("cog-section", class), title)
 
 ui <- page_navbar(
-  title = "Cogitem",
+  title = tags$span(class = "cog-brand", tags$img(src = "logo.png", alt = ""), "Cogitem"),
+  window_title = "Cogitem",
   id = "nav",
   theme = app_theme,
-  header = tags$head(tags$style(HTML(css)), tags$script(HTML(js))),
+  header = tags$head(
+    tags$link(rel = "icon", type = "image/png", href = "logo.png"),
+    tags$link(rel = "stylesheet", href = "fonts/fonts.css"),
+    tags$link(rel = "stylesheet", href = "cogitem.css"),
+    tags$script(src = "cogitem.js")
+  ),
   nav_panel(
     "Generate",
     layout_sidebar(
       sidebar = sidebar(
-        width = 330,
+        width = 320,
+        section("Item model"),
         selectInput("shape", "Shape", shape_choices, selected = "annulus"),
         selectInput("rule", "Rule", rule_choices_all, selected = "dist-of-3"),
-        checkboxInput("layered", "Two layers: inner figure with its own rule", FALSE),
+        input_switch("layered", "Two layers: inner figure with its own rule", FALSE),
         conditionalPanel(
           "input.layered",
           selectInput("inner_shape", "Inner shape", inner_shape_choices, selected = "dice"),
           selectInput("inner_rule", "Inner rule", rule_choices_all, selected = "dist-of-3")
         ),
-        numericInput("n", "Number of items", 20, min = 1, max = 5000, step = 1),
-        textInput("seed", "Seed (blank = random)", ""),
+        section("Item set", "mt-2"),
+        layout_columns(
+          col_widths = c(6, 6),
+          numericInput("n", "Items", 20, min = 1, max = 5000, step = 1),
+          textInput("seed", "Seed", "", placeholder = "random")
+        ),
         sliderInput("n_options", "Response options", min = 2, max = 8, value = 4, step = 1),
-        checkboxInput("perceptual", "Perceptual audit (drop ambiguous items; slower)", TRUE),
+        input_switch("perceptual", "Perceptual audit (drops look-alike items, slower)", TRUE),
         conditionalPanel("output.generating != 'yes'",
-                         actionButton("generate", "Generate", class = "btn-primary w-100")),
+                         actionButton("generate", "Generate items", class = "btn-primary w-100")),
         conditionalPanel("output.generating == 'yes'", uiOutput("generate_progress")),
-        hr(),
         uiOutput("downloads")
       ),
       uiOutput("summary"),
-      div(class = "d-flex justify-content-between align-items-center my-2",
-          actionButton("prev_page", "Previous", class = "btn-sm"),
-          textOutput("page_label", inline = TRUE),
-          actionButton("next_page", "Next", class = "btn-sm")),
-      uiOutput("gallery")
+      uiOutput("gallery"),
+      conditionalPanel(
+        "output.n_pages > 1",
+        div(class = "cog-pager",
+            actionButton("prev_page", "Previous", class = "btn-sm btn-outline-secondary"),
+            textOutput("page_label", inline = TRUE),
+            actionButton("next_page", "Next", class = "btn-sm btn-outline-secondary"))
+      )
     )
   ),
   nav_panel(
     "Browse",
     layout_sidebar(
       sidebar = sidebar(
-        width = 330,
+        width = 320,
+        section("Item"),
         uiOutput("browse_controls"),
-        checkboxInput("show_answer", "Show answer", TRUE),
-        radioButtons("layout", "Layout", c("vertical", "horizontal"), inline = TRUE),
-        hr(),
-        tableOutput("browse_features")
+        input_switch("show_answer", "Show answer", TRUE),
+        radioButtons("layout", "Options layout", c("vertical", "horizontal"), inline = TRUE),
+        section("Design features", "mt-2"),
+        uiOutput("browse_features")
       ),
-      plotOutput("browse_plot", height = "600px"),
+      div(class = "cog-paper cog-browse", plotOutput("browse_plot", height = "600px")),
       uiOutput("browse_audit")
     )
   ),
@@ -171,39 +151,56 @@ ui <- page_navbar(
     "Administer",
     layout_sidebar(
       sidebar = sidebar(
-        width = 330,
+        width = 320,
+        section("Session"),
         textInput("participant", "Participant id", "P001"),
-        checkboxInput("feedback", "Show feedback after each answer", TRUE),
-        checkboxInput("shuffle_items", "Shuffle item order", FALSE),
+        input_switch("feedback", "Feedback after each answer", TRUE),
+        input_switch("shuffle_items", "Shuffle item order", FALSE),
         numericInput("max_items", "Items to administer (0 = all)", 0, min = 0, step = 1),
-        fileInput("upload", "Or load a saved item set (.rds)", accept = ".rds"),
         actionButton("start", "Start", class = "btn-primary w-100"),
-        hr(),
-        uiOutput("admin_status")
+        section("Item set", "mt-3"),
+        uiOutput("admin_status"),
+        fileInput("upload", "Load a saved item set (.rds)", accept = ".rds")
       ),
-      uiOutput("admin_ui")
+      div(class = "cog-test", uiOutput("admin_ui"))
     )
   ),
   nav_panel(
     "About",
-    div(class = "cog-card", style = "max-width: 820px;",
-        h4("Cogitem for R"),
+    div(class = "cog-paper cog-about",
+        tags$img(src = "logo.png", alt = "cogitem logo"),
+        h3("Cogitem for R"),
         p("Rule-based automatic generation of Raven-like 3x3 matrix items. ",
           "Every item combines one figural carrier (15 shape families) with one ",
           "relational rule (identity, distribution of two or three, two-axis progression, ",
-          "rotation, mirror, addition, subtraction, multiplication, AND, OR, XOR, XNOR). ",
+          "rotation, mirror, addition, subtraction, multiplication, AND, OR, XOR, XNOR), ",
+          "or two carriers with two rules in a two-layer item. ",
           "Response options are guaranteed to be visually distinct, generation is seeded ",
           "and every item carries a design-feature record for LLTM-style analyses."),
         p("The perceptual audit renders every option and matrix cell and rejects items in ",
           "which two of them look alike, even when they are nominally different."),
-        p("Item sets are saved as .rds files (also readable with readRDS() in R) and can be ",
+        p("Item sets are saved as .rds files (readable with readRDS() in R) and can be ",
           "reloaded in the Administer tab."),
-        p(class = "cog-muted", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
-  )
+        p(class = "cog-muted mb-0", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
+  ),
+  nav_spacer(),
+  nav_item(span(class = "cog-version", sprintf("v%s", utils::packageVersion("cogitem"))))
 )
 
 server <- function(input, output, session) {
   `%||%` <- function(a, b) if (is.null(a)) b else a
+  nice_shape <- function(s) {
+    l <- cogitem::shape_labels()
+    if (!is.null(s) && s %in% names(l)) unname(l[[s]]) else (s %||% "mixed")
+  }
+  nice_rule <- function(r) {
+    l <- cogitem::rule_labels()
+    if (!is.null(r) && r %in% names(l)) unname(l[[r]]) else (r %||% "mixed")
+  }
+  stat <- function(label, value, sub = NULL) {
+    div(class = "cog-stat", div(class = "k", label), div(class = "v", value),
+        if (!is.null(sub)) div(class = "s", sub))
+  }
   items <- reactiveVal(getOption("cogitem.preloaded"))
   page <- reactiveVal(1L)
   # Two-layer mode restricts the (outer) shape to hollow carriers.
@@ -347,22 +344,23 @@ server <- function(input, output, session) {
   output$summary <- renderUI({
     x <- items()
     if (is.null(x)) {
-      return(div(class = "cog-card cog-muted",
-                 "Choose a shape and a rule, then press Generate. ",
-                 "A saved item set (.rds) can also be loaded in the Administer tab."))
+      return(div(class = "cog-empty",
+                 tags$img(src = "logo.png", alt = ""),
+                 h3("No items yet"),
+                 p("Choose a shape and a rule on the left and press Generate items. ",
+                   "A saved item set (.rds) can be loaded in the Administer tab.")))
     }
     m <- attr(x, "meta")
-    layout_columns(
-      col_widths = c(3, 3, 3, 3),
-      value_box("Items", length(x),
-                if (isTRUE(m$stopped)) sprintf("stopped early (%d requested)", m$n_requested),
-                theme = "primary"),
-      value_box("Seed", format(m$seed %||% NA), theme = "secondary"),
-      value_box("Duplicates skipped", m$duplicates_skipped %||% 0, theme = "secondary"),
-      value_box("Ambiguous dropped",
-                if (isTRUE(m$perceptual)) m$perceptual_skipped %||% 0 else "audit off",
-                theme = "secondary")
-    )
+    div(class = "cog-stats",
+        stat("Items", length(x),
+             if (isTRUE(m$stopped)) sprintf("stopped early, %d requested", m$n_requested)
+             else sprintf("%s, %s", nice_shape(m$shape), nice_rule(m$rule))),
+        stat("Seed", format(m$seed %||% NA), "reproduces this set"),
+        stat("Duplicates skipped", m$duplicates_skipped %||% 0,
+             sprintf("%s attempts", format(m$attempts %||% NA))),
+        stat("Dropped by audit",
+             if (isTRUE(m$perceptual)) m$perceptual_skipped %||% 0 else "off",
+             if (isTRUE(m$perceptual)) "perceptual audit" else "audit was off"))
   })
 
   n_pages <- reactive({
@@ -371,7 +369,9 @@ server <- function(input, output, session) {
   })
   observeEvent(input$prev_page, page(max(1L, page() - 1L)))
   observeEvent(input$next_page, page(min(n_pages(), page() + 1L)))
-  output$page_label <- renderText(sprintf("Page %d / %d", page(), n_pages()))
+  output$page_label <- renderText(sprintf("Page %d of %d", page(), n_pages()))
+  output$n_pages <- renderText(n_pages())
+  outputOptions(output, "n_pages", suspendWhenHidden = FALSE)
 
   output$gallery <- renderUI({
     x <- items()
@@ -380,12 +380,14 @@ server <- function(input, output, session) {
     idx <- seq(start + 1L, min(length(x), start + THUMBS_PER_PAGE))
     cards <- lapply(seq_along(idx), function(k) {
       it <- x[[idx[k]]]
-      div(class = "cog-thumb",
-          div(class = "cap cog-muted", sprintf("#%d  %s / %s  answer %d", idx[k], it$shape,
-                                               it$rule, it$correct)),
-          plotOutput(paste0("thumb_", k), height = "250px"))
+      div(class = "cog-item-card",
+          plotOutput(paste0("thumb_", k), height = "230px"),
+          div(class = "cap",
+              tags$b(sprintf("Item %d", idx[k])),
+              span(sprintf("%s, %s", nice_shape(it$shape), nice_rule(it$rule))),
+              span(class = "key", sprintf("key %d", it$correct))))
     })
-    layout_column_wrap(width = 1 / 3, !!!cards)
+    div(class = "cog-gallery", !!!cards)
   })
 
   lapply(seq_len(THUMBS_PER_PAGE), function(k) {
@@ -401,10 +403,12 @@ server <- function(input, output, session) {
   output$downloads <- renderUI({
     req(items())
     tagList(
-      downloadButton("dl_items", "Item set (.rds)", class = "btn-sm w-100 mb-1"),
-      downloadButton("dl_features", "Features CSV", class = "btn-sm w-100 mb-1"),
-      downloadButton("dl_audit", "Audit CSV", class = "btn-sm w-100 mb-1"),
-      downloadButton("dl_booklet", "PDF booklet", class = "btn-sm w-100 mb-1")
+      section("Export", "mt-2"),
+      div(class = "cog-downloads",
+          downloadButton("dl_items", "Item set (.rds)", class = "btn-outline-secondary"),
+          downloadButton("dl_features", "Features CSV", class = "btn-outline-secondary"),
+          downloadButton("dl_audit", "Audit CSV", class = "btn-outline-secondary"),
+          downloadButton("dl_booklet", "PDF booklet", class = "btn-outline-secondary"))
     )
   })
   stem <- reactive({
@@ -440,7 +444,7 @@ server <- function(input, output, session) {
   # Browse -----------------------------------------------------------------------
   output$browse_controls <- renderUI({
     x <- items()
-    if (is.null(x) || length(x) == 0) return(div(class = "cog-muted", "Generate or load items first."))
+    if (is.null(x) || length(x) == 0) return(div(class = "cog-hint", "Generate or load items first."))
     sliderInput("browse_idx", "Item", min = 1, max = length(x), value = 1, step = 1)
   })
   browse_item <- reactive({
@@ -452,22 +456,24 @@ server <- function(input, output, session) {
     plot(browse_item(), show_answer = isTRUE(input$show_answer),
          layout = input$layout, bg = NA)
   }, bg = "transparent")
-  output$browse_features <- renderTable({
+  output$browse_features <- renderUI({
     f <- cogitem::item_features(browse_item())
     keep <- vapply(f, function(v) !is.na(v[1]) && !identical(v[1], ""), logical(1))
-    data.frame(Feature = names(f)[keep], Value = vapply(f[keep], function(v) as.character(v[1]), ""))
-  }, striped = TRUE, spacing = "xs")
+    vals <- vapply(f[keep], function(v) as.character(v[1]), "")
+    rows <- lapply(seq_along(vals), function(i) list(tags$dt(names(vals)[i]), tags$dd(vals[[i]])))
+    tags$dl(class = "cog-kv", !!!unlist(rows, recursive = FALSE))
+  })
   output$browse_audit <- renderUI({
     a <- tryCatch(cogitem::audit_item(browse_item()), error = function(e) NULL)
     if (is.null(a)) return(NULL)
-    status <- if (a$flagged) span(class = "text-danger", "flagged: two renderings look alike")
-              else span(class = "text-success", "passed")
-    div(class = "cog-card mt-2",
-        strong("Perceptual audit: "), status, br(),
+    div(class = "cog-paper cog-audit",
+        span(class = paste("cog-dot", if (a$flagged) "bad" else "ok")),
+        strong("Perceptual audit:"),
+        span(if (a$flagged) "two renderings look alike" else "passed"),
         span(class = "cog-muted",
-             sprintf("smallest option distance %.2f (options %s)", a$min_option_distance, a$option_pair),
-             if (!is.na(a$min_cell_distance))
-               sprintf(" | smallest cell distance %.2f (%s)", a$min_cell_distance, a$cell_pair)))
+             paste0(sprintf("smallest option distance %.2f (options %s)", a$min_option_distance, a$option_pair),
+                    if (!is.na(a$min_cell_distance))
+                      sprintf(", smallest cell distance %.2f (%s)", a$min_cell_distance, a$cell_pair))))
   })
 
   # Administer -------------------------------------------------------------------
@@ -555,31 +561,41 @@ server <- function(input, output, session) {
   output$admin_status <- renderUI({
     x <- items()
     n <- if (is.null(x)) 0 else length(x)
-    div(class = "cog-muted", sprintf("%d item(s) available.", n),
+    div(class = "cog-hint", sprintf("%d item(s) available.", n),
         if (admin$state != "idle") sprintf(" Progress: %d / %d.", min(admin$pos, length(admin$order)), length(admin$order)))
   })
 
   output$admin_ui <- renderUI({
     if (admin$state == "idle") {
-      return(div(class = "cog-card",
-                 h5("Administration"),
-                 p("Items are shown one at a time. Click the option that completes the matrix. ",
-                   "The chosen option, response time and the hover trace of every option are logged ",
-                   "and can be downloaded as CSV at the end."),
-                 p(class = "cog-muted", "Press Start in the sidebar to begin.")))
+      return(div(class = "cog-paper",
+                 h3("Administration"),
+                 p("Items are shown one at a time. Click the option that completes the matrix ",
+                   "or press its number key. The chosen option, the response time and the hover ",
+                   "trace of every option are logged and can be downloaded as CSV at the end."),
+                 p(class = "cog-muted mb-0", "Press Start in the sidebar to begin.")))
     }
     if (admin$state == "done") {
       res <- do.call(rbind, admin$log)
-      return(tagList(
-        div(class = "cog-card",
-            h5(sprintf("Finished: %d / %d correct", sum(res$correct), nrow(res))),
+      answered <- res[!res$skipped, , drop = FALSE]
+      med_rt <- if (nrow(answered)) stats::median(answered$rt_ms) else NA_real_
+      return(div(class = "cog-results",
+        h3(sprintf("Finished: %d / %d correct", sum(res$correct), nrow(res))),
+        div(class = "cog-stats",
+            stat("Correct", sum(res$correct), sprintf("of %d items", nrow(res))),
+            stat("Accuracy", sprintf("%d%%", round(100 * mean(res$correct))),
+                 sprintf("%d skipped", sum(res$skipped))),
+            stat("Median response time",
+                 if (is.na(med_rt)) "-" else sprintf("%.1f s", med_rt / 1000), "answered items"),
+            stat("Participant", input$participant, format(Sys.time(), "%Y-%m-%d %H:%M"))),
+        div(class = "cog-paper",
             tableOutput("admin_results"),
-            downloadButton("dl_results", "Download results CSV", class = "btn-primary"),
-            actionButton("admin_restart", "Restart", class = "ms-2"))
-      ))
+            div(class = "cog-feedback",
+                downloadButton("dl_results", "Download results CSV", class = "btn-primary"),
+                actionButton("admin_restart", "Restart", class = "btn-outline-secondary")))))
     }
     it <- current_item()
     enabled <- admin$state == "playing"
+    total <- length(admin$order)
     opts <- lapply(seq_len(it$n_options), function(i) {
       cls <- "cog-opt"
       if (!enabled) cls <- paste(cls, "disabled")
@@ -587,25 +603,32 @@ server <- function(input, output, session) {
         cls <- paste(cls, if (admin$picked == it$correct) "correct" else "wrong")
       }
       if (!enabled && i == it$correct && !identical(admin$picked, it$correct)) cls <- paste(cls, "correct")
-      div(class = cls,
+      div(class = cls, role = "button", tabindex = "0", `aria-label` = sprintf("Option %d", i),
           onclick = sprintf("cogPick(%d, %s)", i, tolower(as.character(enabled))),
           onmouseenter = sprintf("cogHover(%d)", i),
-          plotOutput(paste0("admin_opt_", i), width = "132px", height = "132px"))
+          span(class = "key", i),
+          plotOutput(paste0("admin_opt_", i), width = "100%", height = "100%"))
     })
     tagList(
-      div(class = "d-flex justify-content-between align-items-center mb-2",
-          span(class = "cog-muted", sprintf("Item %d / %d", admin$pos, length(admin$order))),
+      tags$script(HTML(sprintf("window.cogN = %d; window.cogEnabled = %s;",
+                               it$n_options, tolower(as.character(enabled))))),
+      div(class = "cog-test-head",
+          span(class = "n", sprintf("Item %d of %d", admin$pos, total)),
           if (enabled) tags$button(class = "btn btn-sm btn-outline-secondary", onclick = "cogSkip()", "Skip")),
+      div(class = "cog-progress",
+          tags$span(style = sprintf("width: %.1f%%;", 100 * (admin$pos - 1) / max(1, total)))),
       layout_columns(
         col_widths = c(6, 6),
-        div(class = "cog-card", plotOutput("admin_matrix", height = "440px")),
-        div(class = "cog-card",
-            p(class = "cog-muted", "Which option completes the matrix?"),
-            div(!!!opts),
+        div(class = "cog-paper", plotOutput("admin_matrix", height = "440px")),
+        div(class = "cog-paper",
+            p(class = "cog-question", "Which option completes the matrix? Click it or press its number."),
+            div(class = "cog-opts", !!!opts),
             if (admin$state == "feedback")
-              actionButton("admin_next", if (admin$pos >= length(admin$order)) "Finish" else "Next",
-                           class = "btn-primary mt-2"))
-      )
+              div(class = "cog-feedback",
+                  actionButton("admin_next", if (admin$pos >= total) "Finish" else "Next", class = "btn-primary"),
+                  span(class = "cog-muted",
+                       if (identical(admin$picked, it$correct)) "Correct."
+                       else sprintf("The correct option was %d.", it$correct)))))
     )
   })
 
@@ -625,9 +648,16 @@ server <- function(input, output, session) {
 
   output$admin_results <- renderTable({
     res <- do.call(rbind, admin$log)
-    res[, c("item_number", "rule", "shape", "chosen_option", "correct", "rt_ms",
-            "hover_count")]
-  }, striped = TRUE, spacing = "xs")
+    data.frame(Item = res$item_number,
+               Rule = vapply(res$rule, nice_rule, ""),
+               Shape = vapply(res$shape, nice_shape, ""),
+               Chosen = ifelse(is.na(res$chosen_option), "skipped", as.character(res$chosen_option)),
+               Key = res$correct_option,
+               Result = ifelse(res$correct, "correct", ifelse(res$skipped, "skipped", "wrong")),
+               `RT (s)` = sprintf("%.1f", res$rt_ms / 1000),
+               Hovers = res$hover_count,
+               check.names = FALSE)
+  }, striped = TRUE, spacing = "xs", align = "rllcccrr")
 
   output$dl_results <- downloadHandler(
     filename = function() sprintf("cogitem-results-%s-%s.csv", input$participant,

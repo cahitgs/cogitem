@@ -9,7 +9,7 @@
 # distinguishable (blue is pushed towards cyan, purple towards violet).
 PALETTE <- list(
   bg = "#ffffff", panel = "#f4f4f5", cell = "#ffffff", border = "#d4d4d8",
-  text = "#18181b", muted = "#71717a", accent = "#6d28d9",
+  text = "#1f2430", muted = "#5c6675", accent = "#2f4f8f",
   success = "#047857", danger = "#b91c1c",
   map = c("#e4e4e7" = "#27272a", "#a78bfa" = "#7c3aed", "#34d399" = "#047857",
           "#f59e0b" = "#b45309", "#60a5fa" = "#0369a1")

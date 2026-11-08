@@ -1,4 +1,4 @@
-# cogitem
+# cogitem <img src="man/figures/logo.png" align="right" height="139" alt="cogitem hex logo" />
 
 Rule-based automatic generation of Raven-like 3x3 matrix items in R.
 
@@ -130,9 +130,11 @@ layer_rules("dice")
 `run_app()` opens an application with four panels: **Generate** (shape,
 rule, optional inner layer, n, seed, option count; gallery preview; item-set `.rds`, feature-CSV,
 audit-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
-features), **Administer** (one item at a time, logging the chosen option,
-response time and the hover trace of every option, with CSV export) and
-**About**. With **callr** installed, generation runs in a background R
+features), **Administer** (one item at a time, answered by click or number
+key, logging the chosen option, response time and the hover trace of every
+option, with a results summary and CSV export) and **About**. The interface
+ships its own typefaces (Fraunces and Manrope, SIL Open Font License) and
+needs no internet connection. With **callr** installed, generation runs in a background R
 process with a progress bar and a *Stop* button that keeps the items produced
 so far.
 
