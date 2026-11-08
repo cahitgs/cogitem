@@ -62,8 +62,9 @@ candidate_perturbations <- function(correct) {
   # Tier 4: count +/- 2
   out <- c(out, param_tweaks(correct, 2, "count2"))
 
-  # Tier 5: fill toggle (only for carriers that draw their fill)
-  if (!attribute_visible(correct, "fill")) {
+  # Tier 5: fill toggle (only for carriers that draw their fill; the thin
+  # petals of a flower make the tint too weak to count)
+  if (!attribute_visible(correct, "fill") || correct$kind == "petals") {
     # nothing to toggle
   } else if (is.na(correct$fill)) {
     out[[length(out) + 1]] <- tag_tier(shape_set(correct, fill = DISTRACTOR_FILL), "fill")

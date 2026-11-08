@@ -11,7 +11,7 @@ generate_layered(
   seed = NULL,
   n_options = 4,
   max_attempts = NULL,
-  perceptual = FALSE,
+  perceptual = TRUE,
   perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
   progress = NULL
 )
@@ -65,7 +65,10 @@ distractors are wrong in the inner layer, wrong in the outer layer or
 wrong in both, in that order of construction, and are recorded as such in
 \code{meta$distractor_tiers} (\code{"inner:<tier>"}, \code{"outer:<tier>"},
 \code{"both:<tier>+<tier>"}). All option-uniqueness guarantees of single-layer
-items apply layer by layer, and the perceptual audit works unchanged.
+items apply layer by layer. Because the inner layer is drawn small, the
+perceptual audit is switched on by default for two-layer items
+(\code{perceptual = TRUE}); it removes items whose inner-layer difference is
+too subtle at that scale.
 }
 \examples{
 items <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"),

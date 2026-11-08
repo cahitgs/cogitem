@@ -172,14 +172,18 @@ item_signature <- function(item) {
           visual_signature(item$options[[item$correct]]))
 }
 
-# Minimum count difference that is still perceptible at cell size.
-min_perceptible_count_delta <- function(kind, hi) {
+# Minimum count difference that is still perceptible at cell size. Small
+# carriers (size below 0.6) need one more step for many-sided polygons, and
+# hairline rings (stroke width below 2) one more ring.
+min_perceptible_count_delta <- function(kind, hi, size = 0.75, sw = 2) {
   switch(
     kind,
     petals = , "spike-ring" = if (hi >= 10) 3 else if (hi >= 7) 2 else 1,
-    star = , polygon = , "nested-polygon" = , "sector-pie" = if (hi >= 7) 2 else 1,
+    star = , polygon = , "nested-polygon" = , "sector-pie" =
+      if (hi >= 7) (if (size < 0.6) 3 else 2) else 1,
     dice = if (hi >= 7) 2 else 1,
     bars = if (hi >= 6) 2 else 1,
+    annulus = if (sw < 2) 2 else 1,
     1
   )
 }
@@ -200,7 +204,8 @@ count_confusable <- function(a, b) {
   bv <- round(b$params[[spec$name]] %||% spec$min)
   if (av == bv) return(FALSE)
   if (count_stripped_signature(a) != count_stripped_signature(b)) return(FALSE)
-  abs(av - bv) < min_perceptible_count_delta(a$kind, max(av, bv))
+  abs(av - bv) < min_perceptible_count_delta(a$kind, max(av, bv), min(a$size, b$size),
+                                             min(a$strokeWidth, b$strokeWidth))
 }
 
 popcount <- function(x) sum(as.integer(intToBits(as.integer(x))))
@@ -222,9 +227,9 @@ pattern_confusable <- function(a, b) {
 # Smallest differences along one attribute that the eye still resolves at
 # cell size (calibrated with perceptual_distance(): a size step of 0.05 or a
 # stroke-width step of 1 unit score around 0.15, the audit threshold).
-MIN_SIZE_DELTA <- 0.06
+MIN_SIZE_DELTA <- 0.1
 MIN_STROKE_DELTA <- 2
-ROTATION_MIN_SHIFT <- 8     # cell units a vertex must move away from a symmetric position
+ROTATION_MIN_SHIFT <- 12    # cell units a vertex must move away from a symmetric position
 ROTATION_MIN_OFFSET_ASYM <- 4 # degrees for carriers without rotational symmetry
 
 # TRUE when a and b differ in nothing but `attr` (through the visual signature).
@@ -238,7 +243,7 @@ same_except <- function(a, b, attr) {
 
 size_confusable <- function(a, b) {
   d <- abs(a$size - b$size)
-  d > 0 && d < MIN_SIZE_DELTA && same_except(a, b, "size")
+  d > 1e-9 && round(d, 6) < MIN_SIZE_DELTA && same_except(a, b, "size")
 }
 
 stroke_width_confusable <- function(a, b) {

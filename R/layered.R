@@ -204,7 +204,10 @@ check_layer_spec <- function(spec, which) {
 #' wrong in both, in that order of construction, and are recorded as such in
 #' `meta$distractor_tiers` (`"inner:<tier>"`, `"outer:<tier>"`,
 #' `"both:<tier>+<tier>"`). All option-uniqueness guarantees of single-layer
-#' items apply layer by layer, and the perceptual audit works unchanged.
+#' items apply layer by layer. Because the inner layer is drawn small, the
+#' perceptual audit is switched on by default for two-layer items
+#' (`perceptual = TRUE`); it removes items whose inner-layer difference is
+#' too subtle at that scale.
 #'
 #' @param outer,inner Character vectors `c(shape, rule)` describing the outer
 #'   and the inner layer; see [layer_shapes()] and [layer_rules()].
@@ -220,7 +223,7 @@ check_layer_spec <- function(spec, which) {
 #' @seealso [generate_items()], [layer_shapes()], [audit_items()]
 #' @export
 generate_layered <- function(outer, inner, n = 10, seed = NULL, n_options = 4,
-                             max_attempts = NULL, perceptual = FALSE,
+                             max_attempts = NULL, perceptual = TRUE,
                              perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
                              progress = NULL) {
   outer <- check_layer_spec(outer, "outer")
