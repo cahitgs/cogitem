@@ -22,8 +22,7 @@ Imports:
     grid,
     grDevices,
     stats,
-    tools,
-    utils
+    tools
 Suggests:
     shiny (>= 1.7),
     bslib,
