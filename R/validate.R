@@ -13,8 +13,10 @@
 #' steps for rotation, the flipped row or column for mirror and `a op b = c`
 #' in every row for the arithmetic and bitwise rules, so hand-made items are
 #' verified too. [generate_items()] discards items that fail this check.
-#' These rules are symbolic; the renderer-based [audit_items()] complements
-#' them.
+#' These rules are symbolic and calibrated for the attribute values that the
+#' generator uses (its stroke palette, size and stroke-width steps, count
+#' ranges); for hand-made items with values outside that space, the
+#' renderer-based [audit_item()] is the complete check and complements them.
 #'
 #' @param item A `cog_item`.
 #' @param n_options Optional required number of options.

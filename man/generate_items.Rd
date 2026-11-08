@@ -55,7 +55,12 @@ duplicates, invalid and perceptually ambiguous attempts).
 \description{
 Produces \code{n} distinct, validated 3x3 matrix items for one shape-rule
 combination. Generation is seeded, so the same \code{seed} always yields the
-same items. Items whose options are not visually distinct (see
+same items: the RNG kind is fixed to Mersenne-Twister (inversion, rejection
+sampling) for the duration of the call, the caller's RNG state is restored
+afterwards and item identifiers are derived from the seeded stream, so the
+result is identical in any R session with the same package version. Only
+the perceptual audit (\code{perceptual = TRUE}) depends in addition on the
+graphics engine. Items whose options are not visually distinct (see
 \code{\link[=is_item_valid]{is_item_valid()}}) are discarded and regenerated; structural duplicates
 (see \code{\link[=item_signature]{item_signature()}}) are removed.
 }

@@ -3,7 +3,7 @@
 # layer is restricted to hollow carriers, pinned to one large size and must
 # not use size or fill, so its centre stays free; the inner layer is drawn at
 # INNER_SCALE of the cell on a small white disc. The two layers therefore
-# never overlap and each keeps its own perceptual guarantees.
+# never overlap and each keeps its own distinctness checks.
 
 OUTER_SHAPES <- c("polygon", "spike-ring")
 INNER_SHAPES <- c("dice", "polygon", "star", "arrow", "hammer", "bars", "grid-dots",
@@ -307,7 +307,7 @@ check_layer_spec <- function(spec, which) {
 #' `"both:<tier>+<tier>"`). Each layer is generated with at most four
 #' options of its own; with more options the distractors are drawn from the
 #' combinations of the layers' wrong options, so any option count from 2 to
-#' 8 works. All option-uniqueness guarantees of single-layer items apply
+#' 8 works. All option-distinctness checks of single-layer items apply
 #' layer by layer, the inner layer being judged at the scale it is drawn
 #' (36 % of the cell, or less when the narrowest outer carrier of the item,
 #' such as a triangle, leaves less clear room; `meta$inner_scale`)

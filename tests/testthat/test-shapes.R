@@ -215,3 +215,24 @@ test_that("small inner polygons and shallow or crowded spikes cannot be counted"
   expect_false(cogitem:::confusable(spikes(12, 0.75, 0.2), spikes(16, 0.75, 0.2)))
 })
 
+
+test_that("colours are compared as they are drawn", {
+  a <- cog_shape("polygon", list(sides = 5), stroke = "#a78bfa")
+  b <- cog_shape("polygon", list(sides = 5), stroke = "#A78BFA")
+  d <- cog_shape("polygon", list(sides = 5), stroke = "#7c3aed")   # display colour of #a78bfa
+  expect_identical(visual_signature(a), visual_signature(b))
+  expect_identical(visual_signature(a), visual_signature(d))
+  it <- generate_item("polygon", "identity", seed = 3, n_options = 4)
+  j <- setdiff(1:4, it$correct)[1]
+  it$options[[j]] <- shape_set(it$options[[it$correct]], stroke = toupper(it$options[[it$correct]]$stroke))
+  expect_false(is_item_valid(it))
+  near <- cog_shape("polygon", list(sides = 5), stroke = "#8a4af0")   # a few CIELAB units away
+  far <- cog_shape("polygon", list(sides = 5), stroke = "#047857")
+  expect_false(identical(visual_signature(d), visual_signature(near)))
+  expect_true(confusable(d, near))
+  expect_false(confusable(d, far))
+  expect_false(confusable(d, cog_shape("polygon", list(sides = 5), stroke = "#7c3aed", fill = "#8a4af0")))
+  filled <- cog_shape("polygon", list(sides = 5), stroke = "#27272a", fill = "#7c3aed")
+  expect_true(confusable(filled, cog_shape("polygon", list(sides = 5), stroke = "#27272a", fill = "#8a4af0")))
+  expect_false(confusable(filled, cog_shape("polygon", list(sides = 5), stroke = "#27272a", fill = "#b45309")))
+})

@@ -1,4 +1,4 @@
-# Distractor construction with the visual-uniqueness guarantee.
+# Distractor construction with the visual-distinctness checks.
 #
 # Every candidate wrong answer is tagged (attr "tier") with the manipulation
 # that produced it, so the item's feature record can report how its

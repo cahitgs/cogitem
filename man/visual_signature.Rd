@@ -17,8 +17,11 @@ Two configurations that produce the same picture for a human observer get
 the same signature. Rotation is normalised by the shape's rotational
 symmetry (an annulus looks the same at any angle, a square every 90
 degrees, an arrow never), so visually identical response options can be
-detected and eliminated during generation. This is the mechanism behind
-the package's option-uniqueness guarantee.
+detected and eliminated during generation. Colours are serialised as they
+are drawn (display palette, lower-case hex), so \code{"#A78BFA"}, \code{"#a78bfa"}
+and a colour name for the same RGB value share one signature. This is the
+first of the package's two option-distinctness checks; the renderer-based
+\code{\link[=audit_item]{audit_item()}} is the second.
 }
 \examples{
 a <- cog_shape("polygon", list(sides = 4), rotation = 0)

@@ -12,28 +12,41 @@ q_matrix(x, formula = ~rule + shape, intercept = FALSE)
 \item{formula}{A one-sided additive formula over the columns of
 \code{\link[=item_features]{item_features()}}.}
 
-\item{intercept}{Add a column of ones?}
+\item{intercept}{Add a column of ones? Every complete categorical feature
+is then reference-coded.}
 }
 \value{
 A numeric matrix with item ids as row names.
 }
 \description{
-Builds a design matrix (items x features) from \code{\link[=item_features]{item_features()}}. Every
-character feature in the formula is expanded into one 0/1 column per
-observed level, with no reference level dropped, as is usual for a
-Q-matrix; numeric and logical features are kept as they are. A missing
-feature value means that the attribute does not apply to the item and is
-coded 0. Only additive formulas are supported. Note that the indicator
-columns of two complete factors are linearly dependent (both sum to one
-in every row): drop one column per additional factor, or use a single
-factor, when the estimation software needs full column rank, as
-\code{eRm::LLTM()} does; \code{lme4::glmer()} and \code{TAM} accept the columns as item
-covariates.
+Builds a design matrix (items x features) from \code{\link[=item_features]{item_features()}} for an
+explanatory item response model such as the linear logistic test model
+(LLTM). Numeric and logical features are kept as they are. A categorical
+feature is expanded into 0/1 indicator columns: the first categorical
+feature that is defined for every item keeps one column per level
+(cell-means coding, as is usual for a Q-matrix); every further complete
+categorical feature, and every categorical feature when
+\code{intercept = TRUE}, drops its first level as the reference level, because
+the complete indicator sets of two features (or of one feature and the
+intercept) both sum to one in every row and would be linearly dependent.
+A missing value means that the attribute does not apply to the item (the
+rotation step of a distribution item, say) and is coded 0 in every column
+of that feature; such incomplete features keep all their observed levels.
+Only additive formulas are supported.
+}
+\details{
+The parameters of an LLTM are identified only when the matrix has full
+column rank, so the function warns when it does not. The usual causes are
+a feature that is constant in the set (\code{n_options} in a set generated with
+a single option count) or two features that are confounded (\code{shape} and
+\code{rule} in a set with one carrier per rule); drop the term or vary the
+design. \code{eRm::LLTM()} requires full column rank; \code{lme4::glmer()} and \code{TAM}
+accept the columns as item covariates.
 }
 \examples{
 items <- generate_mixed(subset(supported_combinations(), shape == "dice"),
                         n_each = 1, seed = 5)
 Q <- q_matrix(items, ~ rule)
 dim(Q)
-q_matrix(items, ~ rule_family + n_options)[1:3, ]
+q_matrix(items, ~ rule_family + n_rule_distractors)[1:3, ]
 }

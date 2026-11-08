@@ -20,6 +20,9 @@ measure <- function(it, shape, rule, no, seed) {
   data.frame(shape = shape, rule = rule, n_options = no, seed = seed, id = it$id,
              n_opt_actual = length(it$options),
              min_pair = min(D, na.rm = TRUE),
+             n_pairs = sum(!is.na(D[upper.tri(D)])),
+             pairs_005 = sum(D[upper.tri(D)] < 0.05, na.rm = TRUE),
+             pairs_015 = sum(D[upper.tri(D)] < 0.15, na.rm = TRUE),
              min_vs_correct = min(D[k, -k]),
              min_cell = a$min_cell_distance,
              sig_dup = anyDuplicated(vapply(it$options, visual_signature, "")) > 0,
@@ -58,6 +61,8 @@ utils::write.csv(res, file.path(out, paste0(tag, ".csv")), row.names = FALSE)
 cat(sprintf("\nitems: %d | signature duplicates: %d | exact duplicates (0): %d | < 0.05: %d | < 0.15: %d\n",
             nrow(res), sum(res$sig_dup), sum(res$min_pair == 0), sum(res$min_pair < 0.05),
             sum(res$min_pair < 0.15)))
+cat(sprintf("option pairs: %d | pairs < 0.05: %d | pairs < 0.15: %d | items with a pair < 0.15: %d\n",
+            sum(res$n_pairs), sum(res$pairs_005), sum(res$pairs_015), sum(res$min_pair < 0.15)))
 cat(sprintf("pairs with the correct answer: min %.3f | < 0.05: %d | < 0.15: %d\n",
             min(res$min_vs_correct), sum(res$min_vs_correct < 0.05), sum(res$min_vs_correct < 0.15)))
 cat(sprintf("items with fewer options than requested: %d\n", sum(res$n_opt_actual != res$n_options)))

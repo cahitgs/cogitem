@@ -25,6 +25,8 @@ for (no in counts) for (k in seq_len(nrow(pairs))) {
     a <- audit_item(it); D <- a$option_distances; kk <- it$correct
     rows[[length(rows) + 1]] <- data.frame(outer = paste(cb[1], cb[2], sep = "/"), inner = paste(cb[3], cb[4], sep = "/"), n_options = no, id = it$id,
                                            min_pair = min(D, na.rm = TRUE), min_vs_correct = min(D[kk, -kk]), min_cell = a$min_cell_distance,
+                                           n_pairs = sum(!is.na(D[upper.tri(D)])), pairs_005 = sum(D[upper.tri(D)] < 0.05, na.rm = TRUE),
+                                           pairs_015 = sum(D[upper.tri(D)] < 0.15, na.rm = TRUE),
                                            sig_dup = anyDuplicated(vapply(it$options, visual_signature, "")) > 0,
                                            tiers = paste(it$meta$distractor_tiers, collapse = ";"), stringsAsFactors = FALSE)
   }
@@ -35,6 +37,8 @@ utils::write.csv(res, file.path(out, paste0(tag, ".csv")), row.names = FALSE)
 utils::write.csv(gen, file.path(out, paste0(tag, "-sets.csv")), row.names = FALSE)
 cat(sprintf("\nitems: %d | signature duplicates: %d | exact duplicates (0): %d | < 0.05: %d | < 0.15: %d\n",
             nrow(res), sum(res$sig_dup), sum(res$min_pair == 0), sum(res$min_pair < 0.05), sum(res$min_pair < 0.15)))
+cat(sprintf("option pairs: %d | pairs < 0.05: %d | pairs < 0.15: %d | items with a pair < 0.15: %d\n",
+            sum(res$n_pairs), sum(res$pairs_005), sum(res$pairs_015), sum(res$min_pair < 0.15)))
 cat(sprintf("pairs with the correct answer: min %.3f | < 0.15: %d\n", min(res$min_vs_correct), sum(res$min_vs_correct < 0.15)))
 cat(sprintf("sets short of %d items: %d of %d (sets with 0 items: %d)\n", n_per, sum(gen$items < n_per), nrow(gen), sum(gen$items == 0)))
 short <- gen[gen$items < n_per, ]

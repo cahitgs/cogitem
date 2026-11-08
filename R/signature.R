@@ -142,8 +142,11 @@ canonical_shape <- function(s) {
 #' the same signature. Rotation is normalised by the shape's rotational
 #' symmetry (an annulus looks the same at any angle, a square every 90
 #' degrees, an arrow never), so visually identical response options can be
-#' detected and eliminated during generation. This is the mechanism behind
-#' the package's option-uniqueness guarantee.
+#' detected and eliminated during generation. Colours are serialised as they
+#' are drawn (display palette, lower-case hex), so `"#A78BFA"`, `"#a78bfa"`
+#' and a colour name for the same RGB value share one signature. This is the
+#' first of the package's two option-distinctness checks; the renderer-based
+#' [audit_item()] is the second.
 #'
 #' @param s A `cog_shape`.
 #' @return A character string.
@@ -163,11 +166,14 @@ visual_signature <- function(s) {
                    collapse = ",")
   fold <- rotation_symmetry_fold(s)
   eff_rot <- if (fold >= 360) 0 else round(s$rotation %% (360 / fold))
-  fill <- if (is.null(s$fill) || is.na(s$fill) || !attribute_visible(s, "fill")) "none" else s$fill
+  fill <- if (attribute_visible(s, "fill")) canonical_colour(s$fill) else NA_character_
+  if (is.na(fill)) fill <- "none"
+  stroke <- canonical_colour(s$stroke)
+  if (is.na(stroke)) stroke <- "none"
   sw <- if (attribute_visible(s, "strokeWidth")) fmt_num(s$strokeWidth) else "NA"
   sprintf("%s(sz=%s,rot=%s,sw=%s,stk=%s,fill=%s,%s)",
           s$kind, fmt_num(round2(s$size)), fmt_num(eff_rot),
-          sw, s$stroke, fill, params)
+          sw, stroke, fill, params)
 }
 
 fmt_num <- function(x) {
@@ -416,6 +422,63 @@ MIN_STROKE_DELTA <- 2
 ROTATION_MIN_SHIFT <- 12    # cell units a vertex must move away from a symmetric position
 ROTATION_MIN_OFFSET_ASYM <- 4 # degrees for carriers without rotational symmetry
 
+# A colour as the renderer draws it: generator palette colours are replaced by
+# their display equivalents (PALETTE$map, see css_color()), everything else is
+# normalised to lower-case hex, so that "#A78BFA", "#a78bfa", the display
+# colour "#7c3aed" and a colour name for the same RGB value compare equal.
+# Memoised: generation computes thousands of signatures over a handful of
+# colours.
+.colour_cache <- new.env(parent = emptyenv())
+canonical_colour <- function(col) {
+  if (is.null(col) || length(col) != 1 || is.na(col)) return(NA_character_)
+  key <- as.character(col)
+  hit <- .colour_cache[[key]]
+  if (!is.null(hit)) return(hit)
+  out <- css_color(key)
+  if (!is.na(out)) {
+    rgb <- tryCatch(grDevices::col2rgb(out, alpha = TRUE), error = function(e) NULL)
+    out <- if (is.null(rgb)) {
+      tolower(out)
+    } else if (rgb[4, 1] < 255) {
+      tolower(grDevices::rgb(rgb[1], rgb[2], rgb[3], rgb[4], maxColorValue = 255))
+    } else {
+      tolower(grDevices::rgb(rgb[1], rgb[2], rgb[3], maxColorValue = 255))
+    }
+  } else {
+    out <- NA_character_
+  }
+  assign(key, out, envir = .colour_cache)
+  out
+}
+
+# CIELAB distance below which a stroke or fill colour change scores under the
+# audit threshold for every carrier (perceptual_distance() is close to
+# 0.0075 x delta E; the display palette's closest pair is 44 units apart).
+MIN_COLOUR_DELTA_E <- 20
+
+# TRUE when a and b differ in nothing but their stroke and/or fill colours and
+# every differing colour pair lies within MIN_COLOUR_DELTA_E as drawn. A
+# colour against no fill is always a visible change.
+colour_confusable <- function(a, b) {
+  if (a$kind != b$kind) return(FALSE)
+  cols <- lapply(list(a, b), function(s) {
+    c(stroke = canonical_colour(s$stroke),
+      fill = if (attribute_visible(s, "fill")) canonical_colour(s$fill) else NA_character_)
+  })
+  x <- cols[[1]]
+  y <- cols[[2]]
+  differs <- !mapply(identical, x, y)
+  if (!any(differs)) return(FALSE)
+  a$stroke <- b$stroke <- "#000000"
+  a$fill <- b$fill <- NA_character_
+  if (visual_signature(a) != visual_signature(b)) return(FALSE)
+  all(vapply(which(differs), function(i) {
+    if (is.na(x[i]) || is.na(y[i])) return(FALSE)
+    lab <- srgb_to_lab(t(grDevices::col2rgb(c(x[i], y[i])) / 255))
+    sqrt(sum((lab[1, ] - lab[2, ])^2)) < MIN_COLOUR_DELTA_E
+  }, logical(1)))
+}
+
 # TRUE when a and b differ in nothing but `attr` (through the visual signature).
 same_except <- function(a, b, attr) {
   if (a$kind != b$kind) return(FALSE)
@@ -480,5 +543,6 @@ confusable <- function(a, b) {
     }, logical(1))))
   }
   count_confusable(a, b) || pattern_confusable(a, b) || size_confusable(a, b) ||
-    stroke_width_confusable(a, b) || rotation_confusable(a, b)
+    stroke_width_confusable(a, b) || rotation_confusable(a, b) ||
+    colour_confusable(a, b)
 }

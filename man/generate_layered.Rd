@@ -67,8 +67,10 @@ wrong in both, in that order of construction, and are recorded as such in
 \code{"both:<tier>+<tier>"}). Each layer is generated with at most four
 options of its own; with more options the distractors are drawn from the
 combinations of the layers' wrong options, so any option count from 2 to
-8 works. All option-uniqueness guarantees of single-layer items apply
+8 works. All option-distinctness checks of single-layer items apply
 layer by layer, the inner layer being judged at the scale it is drawn
+(36 \% of the cell, or less when the narrowest outer carrier of the item,
+such as a triangle, leaves less clear room; \code{meta$inner_scale})
 (an inner stroke-width or small size step does not count as a
 difference). The perceptual audit is switched on by default for two-layer
 items (\code{perceptual = TRUE}); it compares the layers one by one, each at

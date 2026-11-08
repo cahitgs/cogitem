@@ -145,3 +145,23 @@ test_that("is_item_valid() verifies the rule relation itself", {
   expect_false(is_item_valid(lay))
 })
 
+
+test_that("the same seed reproduces items and ids whatever the caller's RNG kind", {
+  a <- generate_items("polygon", "progression", n = 4, seed = 11)
+  old <- RNGkind()
+  on.exit(suppressWarnings(RNGkind(old[1], old[2], old[3])), add = TRUE)
+  RNGkind("Wichmann-Hill", "Box-Muller")
+  b <- generate_items("polygon", "progression", n = 4, seed = 11)
+  expect_identical(RNGkind()[1:2], c("Wichmann-Hill", "Box-Muller"))  # caller's kind restored
+  expect_identical(vapply(a, `[[`, "", "id"), vapply(b, `[[`, "", "id"))
+  expect_identical(vapply(a, item_signature, ""), vapply(b, item_signature, ""))
+  expect_identical(unclass(a), unclass(b))
+  specs <- data.frame(shape = c("dice", "arrow"), rule = c("addition", "rotation"))
+  m1 <- generate_mixed(specs, n_each = 2, seed = 4)
+  m2 <- generate_mixed(specs, n_each = 2, seed = 4)
+  expect_identical(unclass(m1), unclass(m2))
+  expect_false(anyDuplicated(vapply(m1, `[[`, "", "id")) > 0)
+  l1 <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"), n = 2, seed = 7, perceptual = FALSE)
+  l2 <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"), n = 2, seed = 7, perceptual = FALSE)
+  expect_identical(unclass(l1), unclass(l2))
+})

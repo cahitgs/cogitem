@@ -1,3 +1,25 @@
+# cogitem 0.1.1
+
+* Reproducibility: `generate_items()`, `generate_layered()`, `generate_mixed()`
+  and `sample_items()` fix the RNG kind (Mersenne-Twister, inversion,
+  rejection sampling) for the duration of the call and restore the caller's
+  RNG state afterwards; item identifiers are derived from the seeded stream
+  instead of a session counter. The same seed therefore yields identical
+  items, identifiers included, in any R session with the same package
+  version.
+* `visual_signature()` serialises colours as they are drawn (display palette,
+  lower-case hex), so `"#A78BFA"`, `"#a78bfa"` and a colour name for the same
+  RGB value share one signature; options that differ only in stroke or fill
+  colours closer than 20 CIELAB units count as confusable, in line with the
+  perceptual audit.
+* `q_matrix()` reference-codes every complete categorical feature after the
+  first (and all of them with `intercept = TRUE`) and warns when the matrix
+  is not of full column rank, naming constant columns.
+* The documentation, the package description and the application describe
+  the two option-distinctness checks (symbolic and perceptual) and the
+  default of the perceptual audit (off for single-layer, on for two-layer
+  items) instead of a "guarantee".
+
 # cogitem 0.1.0
 
 * Initial release.

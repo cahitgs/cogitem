@@ -3,8 +3,9 @@
 Rule-based automatic generation of Raven-like 3x3 matrix items in R.
 
 `cogitem` builds figural matrix items from an explicit item model (a figural
-carrier crossed with a relational rule), guarantees that the response options
-of every item are visually distinct, records the design features of every
+carrier crossed with a relational rule), checks that the response options of
+every item are visually distinct (symmetry-aware signatures plus an optional
+renderer-based perceptual audit), records the design features of every
 item for explanatory item response models, draws items with `grid`, and ships
 a Shiny application for computerised administration.
 
