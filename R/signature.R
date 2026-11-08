@@ -30,11 +30,101 @@ attribute_visible <- function(s, what) {
 #' b <- cog_shape("polygon", list(sides = 4), rotation = 90)
 #' identical(visual_signature(a), visual_signature(b)) # TRUE: a square
 #' @export
+# Rotate a rows x cols bit pattern (bit r * cols + c = cell r, c filled, row 0
+# at the top) clockwise by `steps` quarter turns.
+rotate_pattern_cw <- function(rows, cols, pattern, steps) {
+  steps <- steps %% 4
+  bits <- bitwAnd(as.integer(pattern), bitwShiftL(1L, 0:(rows * cols - 1))) != 0
+  m <- matrix(bits, nrow = rows, ncol = cols, byrow = TRUE)
+  for (k in seq_len(steps)) m <- t(m[nrow(m):1, , drop = FALSE])
+  idx <- which(as.vector(t(m)))
+  list(rows = nrow(m), cols = ncol(m),
+       pattern = if (length(idx)) sum(bitwShiftL(1L, idx - 1L)) else 0L)
+}
+
+# Rotate a box-lines mask (spokes 1 top, 2 right, 4 bottom, 8 left; diagonals
+# 16 top-left to bottom-right, 32 top-right to bottom-left) clockwise.
+rotate_mask_cw <- function(mask, steps) {
+  mask <- as.integer(mask)
+  spokes <- bitwAnd(mask, c(1L, 2L, 4L, 8L)) != 0
+  diags <- bitwAnd(mask, c(16L, 32L)) != 0
+  for (k in seq_len(steps %% 4)) {
+    spokes <- spokes[c(4, 1, 2, 3)]
+    diags <- diags[2:1]
+  }
+  sum(c(1L, 2L, 4L, 8L)[spokes]) + sum(c(16L, 32L)[diags])
+}
+
+# Do all textures of a sector pie look the same after rotating by theta
+# degrees? Solid, empty and dots at any angle, cross-hatch at multiples of 90,
+# parallel and diagonal lines only at 180.
+textures_invariant <- function(pats, theta) {
+  all(vapply(unique(pats), function(t) {
+    if (t %in% c(0, 1, 2)) TRUE else if (t == 7) theta %% 90 == 0 else theta %% 180 == 0
+  }, logical(1)))
+}
+
+# Rotation-canonical form of a pattern carrier: the quarter turns of the
+# rotation are folded into the pattern itself, so two configurations that draw
+# the same picture get the same signature (a glyph turned by 180 degrees and
+# its rotated twin preset, a 2x3 dot grid turned by 90 degrees and a 3x2
+# grid, horizontal bars turned by 90 degrees and vertical bars).
+canonical_shape <- function(s) {
+  rot <- s$rotation %% 360
+  k <- floor((rot + 1e-9) / 90) %% 4
+  residual <- rot - 90 * k
+  p <- s$params
+  if (s$kind == "block-letter") {
+    idx <- clamp(round(p$patternIndex %||% 0), 0, length(BLOCK_LETTER_PRESETS) - 1)
+    g <- rotate_pattern_cw(3, 3, BLOCK_LETTER_PRESETS[idx + 1], k)
+    s$params <- list(glyph = g$pattern)
+    s$rotation <- residual
+  } else if (s$kind == "checkerboard") {
+    rows <- max(1, round(p$rows %||% 3))
+    cols <- max(1, round(p$cols %||% 3))
+    g <- rotate_pattern_cw(rows, cols, round(p$pattern %||% 0), k)
+    s$params$rows <- g$rows
+    s$params$cols <- g$cols
+    s$params$pattern <- g$pattern
+    s$rotation <- residual
+  } else if (s$kind == "box-lines") {
+    s$params$lineMask <- rotate_mask_cw(round(p$lineMask %||% 0), k)
+    s$rotation <- residual
+  } else if (s$kind == "grid-dots") {
+    if (k %% 2 == 1) {
+      rows <- p$rows
+      s$params$rows <- p$cols
+      s$params$cols <- rows
+    }
+    s$rotation <- residual
+  } else if (s$kind == "bars") {
+    orientation <- round(p$orientation %||% 0) %% 3
+    s$params$orientation <- 0
+    s$rotation <- (rot + c(0, 90, 45)[orientation + 1]) %% 180
+  } else if (s$kind == "sector-pie") {
+    n <- clamp(round(p$sectorCount %||% 6), 2, 8)
+    turns <- rot / (360 / n)
+    if (abs(turns - round(turns)) < 1e-6 && round(turns) %% n != 0) {
+      packed <- p$sectorPatterns %||%
+        (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
+      pats <- unpack_sector_patterns(packed, n)
+      if (textures_invariant(pats, rot)) {
+        sh <- round(turns) %% n
+        s$params$sectorPatterns <- pack_sector_patterns(pats[((seq_len(n) - 1 - sh) %% n) + 1])
+        s$params$fillMask <- NULL
+        s$rotation <- 0
+      }
+    }
+  }
+  s
+}
+
 visual_signature <- function(s) {
   if (is_stack(s)) {
     return(sprintf("stack[%s|%s]", visual_signature(s$layers[[1]]),
                    visual_signature(s$layers[[2]])))
   }
+  s <- canonical_shape(s)
   nms <- sort(names(s$params))
   params <- paste0(nms, "=", vapply(nms, function(k) fmt_num(s$params[[k]]), ""),
                    collapse = ",")
@@ -90,7 +180,7 @@ rotation_symmetry_fold <- function(s) {
       gcd(outer, inner)
     },
     "sector-pie" = sector_pie_fold(p),
-    "block-letter" = grid_pattern_fold(3, 3, BLOCK_LETTER_PRESETS[clamp(round(p$patternIndex %||% 0), 0, 7) + 1]),
+    "block-letter" = grid_pattern_fold(3, 3, p$glyph %||% BLOCK_LETTER_PRESETS[clamp(round(p$patternIndex %||% 0), 0, 7) + 1]),
     1
   )
 }
@@ -138,11 +228,7 @@ sector_pie_fold <- function(p) {
   packed <- p$sectorPatterns %||%
     (if (!is.null(p$fillMask)) fill_mask_to_patterns(round(p$fillMask), n, 1) else 0)
   pats <- unpack_sector_patterns(packed, n)
-  invariant <- function(theta) {
-    all(vapply(unique(pats), function(t) {
-      if (t %in% c(0, 1, 2)) TRUE else if (t == 7) theta %% 90 == 0 else theta %% 180 == 0
-    }, logical(1)))
-  }
+  invariant <- function(theta) textures_invariant(pats, theta)
   for (d in seq(n, 2)) {
     if (n %% d != 0) next
     k <- n / d

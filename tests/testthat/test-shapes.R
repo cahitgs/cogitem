@@ -150,3 +150,34 @@ test_that("count steps are judged with size and stroke width in mind", {
   expect_false(any(petals$meta$distractor_tiers == "fill"))
 })
 
+
+test_that("quarter turns are folded into the signature of pattern carriers", {
+  cb <- function(rows, cols, pattern, rot = 0) cog_shape("checkerboard", list(rows = rows, cols = cols, pattern = pattern), rotation = rot)
+  expect_identical(visual_signature(cb(2, 2, 1, 90)), visual_signature(cb(2, 2, 2)))   # top-left cell turned cw = top-right
+  expect_false(identical(visual_signature(cb(2, 2, 1, 90)), visual_signature(cb(2, 2, 4))))
+  expect_identical(visual_signature(cb(2, 3, 1, 90)), visual_signature(cb(3, 2, 2)))
+  bl <- function(idx, rot = 0) cog_shape("block-letter", list(patternIndex = idx), rotation = rot)
+  expect_identical(visual_signature(bl(7, 180)), visual_signature(bl(6, 90)))        # presets 6 and 7 are rotations of each other
+  expect_false(identical(visual_signature(bl(7, 180)), visual_signature(bl(6, 270))))
+  bx <- function(mask, rot = 0) cog_shape("box-lines", list(lineMask = mask), rotation = rot)
+  expect_identical(visual_signature(bx(1, 90)), visual_signature(bx(2)))
+  expect_identical(visual_signature(bx(16, 90)), visual_signature(bx(32)))
+  expect_false(identical(visual_signature(bx(1, 90)), visual_signature(bx(8))))
+  gd <- function(r, c, rot = 0) cog_shape("grid-dots", list(rows = r, cols = c, dotSize = 0.08), rotation = rot)
+  expect_identical(visual_signature(gd(2, 3, 90)), visual_signature(gd(3, 2)))
+  br <- function(o, rot = 0) cog_shape("bars", list(barCount = 3, orientation = o), rotation = rot)
+  expect_identical(visual_signature(br(0, 90)), visual_signature(br(1)))
+  expect_identical(visual_signature(br(0, 45)), visual_signature(br(2)))
+  pie <- function(pats, rot = 0) cog_shape("sector-pie", list(sectorCount = 4, sectorPatterns = cogitem:::pack_sector_patterns(pats)), rotation = rot)
+  expect_identical(visual_signature(pie(c(1, 0, 0, 0), 90)), visual_signature(pie(c(0, 1, 0, 0))))
+  expect_false(identical(visual_signature(pie(c(1, 0, 0, 0), 90)), visual_signature(pie(c(0, 0, 0, 1)))))
+  expect_false(identical(visual_signature(pie(c(3, 0, 0, 0), 90)), visual_signature(pie(c(0, 3, 0, 0)))))  # hatch turns with the pie
+  skip_if_not(requireNamespace("ragg", quietly = TRUE) || requireNamespace("png", quietly = TRUE))
+  expect_lt(perceptual_distance(bl(7, 180), bl(6, 90)), 0.01)
+  expect_lt(perceptual_distance(bx(1, 90), bx(2)), 0.01)
+  expect_lt(perceptual_distance(br(0, 90), br(1)), 0.01)
+  expect_lt(perceptual_distance(gd(2, 3, 90), gd(3, 2)), 0.01)
+  it <- generate_item("block-letter", "identity", seed = 1008 + which(supported_combinations()$shape == "block-letter" & supported_combinations()$rule == "identity"), n_options = 8)
+  expect_gt(audit_item(it)$min_option_distance, 0.1)
+})
+

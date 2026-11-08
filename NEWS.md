@@ -24,7 +24,10 @@
   below 2 units and rotations that leave every component of a carrier within
   a few cell units of a symmetric position (a nested heptagon/octagon rotated
   by 45 degrees); pattern carriers take their rotational symmetry from the
-  pattern itself. Fill distractors use a stronger tint.
+  pattern itself, and quarter turns are folded into that pattern, so a glyph
+  turned by 180 degrees and its rotated twin, or a 2 x 3 dot grid turned by
+  90 degrees and a 3 x 2 grid, share one signature. Fill distractors use a
+  stronger tint.
 * `q_matrix()` uses explicit indicator coding (one column per level, a
   missing attribute is 0), so it also works for single-level factors and
   rule-specific features; the perceptual audit falls back to the **png**
