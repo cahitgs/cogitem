@@ -1,3 +1,11 @@
+# cogitem 0.1.2
+
+* Two-layer items with four or more options always contain a distractor that
+  is wrong only in the inner layer and one that is wrong only in the outer
+  layer; compositions without them are rejected and regenerated (before, about
+  0.5 % of items lacked an inner-only distractor, so the outer rule alone
+  identified their key).
+
 # cogitem 0.1.1
 
 * Reproducibility: `generate_items()`, `generate_layered()`, `generate_mixed()`

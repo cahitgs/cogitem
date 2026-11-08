@@ -64,7 +64,9 @@ Response options: the keyed option stacks the two correct answers; the
 distractors are wrong in the inner layer, wrong in the outer layer or
 wrong in both, in that order of construction, and are recorded as such in
 \code{meta$distractor_tiers} (\code{"inner:<tier>"}, \code{"outer:<tier>"},
-\code{"both:<tier>+<tier>"}). Each layer is generated with at most four
+\code{"both:<tier>+<tier>"}). With four or more options every item contains at
+least one distractor that is wrong only in the inner layer and one that is
+wrong only in the outer layer, so neither rule alone identifies the key. Each layer is generated with at most four
 options of its own; with more options the distractors are drawn from the
 combinations of the layers' wrong options, so any option count from 2 to
 8 works. All option-distinctness checks of single-layer items apply

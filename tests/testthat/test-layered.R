@@ -170,3 +170,17 @@ test_that("a shrunken inner layer keeps its line weight, so annulus counts stay 
     expect_length(generate_layered(c("polygon", "subtraction"), spec, n = 1, seed = 2, perceptual = FALSE), 1)
   }
 })
+
+test_that("two-layer items with four or more options need both rules to identify the key", {
+  for (spec in list(list(c("polygon", "dist-of-3"), c("dice", "identity"), 4L),
+                    list(c("spike-ring", "identity"), c("annulus", "dist-of-3"), 6L),
+                    list(c("polygon", "progression"), c("grid-dots", "addition"), 8L))) {
+    set <- generate_layered(spec[[1]], spec[[2]], n = 3, seed = 9, n_options = spec[[3]], perceptual = FALSE)
+    expect_length(set, 3)
+    for (it in set) {
+      tiers <- it$meta$distractor_tiers
+      expect_true(any(startsWith(tiers, "inner:")), info = paste(tiers, collapse = ";"))
+      expect_true(any(startsWith(tiers, "outer:")), info = paste(tiers, collapse = ";"))
+    }
+  }
+})

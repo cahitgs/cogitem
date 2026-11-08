@@ -1,7 +1,7 @@
 Package: cogitem
 Type: Package
 Title: Rule-Based Automatic Generation of Raven-Like Matrix Items
-Version: 0.1.1
+Version: 0.1.2
 Authors@R: person("Mehmet Cahit", "Marangoz", email = "cahitgs@gmail.com",
     role = c("aut", "cre"))
 Description: Generates Raven-like 3x3 figural matrix items from an explicit

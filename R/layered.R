@@ -157,7 +157,9 @@ pin_outer_size <- function(item) {
 # visited in turn and a candidate is kept only when it is distinct from, and
 # not confusable with, the key and every candidate kept before it, the inner
 # layer being judged at the scale it is drawn. Fewer than n_options - 1
-# survivors leave a short item, which the generation loop rejects.
+# survivors leave a short item, which the generation loop rejects; with four
+# or more options a composition without an inner-only or an outer-only
+# distractor is rejected too, so that neither rule alone identifies the key.
 compose_layered <- function(outer, inner, n_options) {
   sc <- inner_scale_for(all_item_shapes(outer))
   stack_shape <- function(o, i) new_stack(o, i, sc)
@@ -223,6 +225,10 @@ compose_layered <- function(outer, inner, n_options) {
       if (length(cands) >= need) break
     }
     if (!taken) break
+  }
+  if (n_options >= 4L &&
+      (!any(startsWith(tiers, "inner:")) || !any(startsWith(tiers, "outer:")))) {
+    stop("composition lacks a distractor that is wrong in only one layer", call. = FALSE)
   }
 
   opts <- c(list(key), cands)
@@ -306,7 +312,9 @@ check_layer_spec <- function(spec, which) {
 #' distractors are wrong in the inner layer, wrong in the outer layer or
 #' wrong in both, in that order of construction, and are recorded as such in
 #' `meta$distractor_tiers` (`"inner:<tier>"`, `"outer:<tier>"`,
-#' `"both:<tier>+<tier>"`). Each layer is generated with at most four
+#' `"both:<tier>+<tier>"`). With four or more options every item contains at
+#' least one distractor that is wrong only in the inner layer and one that is
+#' wrong only in the outer layer, so neither rule alone identifies the key. Each layer is generated with at most four
 #' options of its own; with more options the distractors are drawn from the
 #' combinations of the layers' wrong options, so any option count from 2 to
 #' 8 works. All option-distinctness checks of single-layer items apply
