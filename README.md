@@ -139,8 +139,7 @@ so far.
 * IMak (Blum & Holling, 2018), an R package generating figural analogies.
 * Sandia Matrices (Matzen et al., 2010), the Java generator of Raven-like
   matrices.
-* Corvus (Thimbleby), the browser generator that inspired the Cogitem web
-  application.
+* Corvus (Thimbleby), a browser-based generator of Raven-like matrices.
 
 ## License
 

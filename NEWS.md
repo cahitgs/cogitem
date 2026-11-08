@@ -1,7 +1,6 @@
 # cogitem 0.1.0
 
-* Initial release: R port of the 3x3 matrix-item core of the Cogitem web
-  application.
+* Initial release.
 * 15 figural carriers x 13 relational rules (identity, distribution of two
   and three, two-axis progression, rotation, mirror, addition, subtraction,
   multiplication, AND, OR, XOR, XNOR); `supported_combinations()` lists the
