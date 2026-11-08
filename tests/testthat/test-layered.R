@@ -133,3 +133,28 @@ test_that("the perceptual audit compares two-layer stacks layer by layer", {
   expect_gte(perceptual_distance(st(outer, dice(2)), st(outer, dice(4))), perceptual_distance(dice(2), dice(4)) - 1e-9)
 })
 
+test_that("the inner layer shrinks inside narrow outer carriers", {
+  tri <- cog_shape("polygon", list(sides = 3), size = 0.95, strokeWidth = 3)
+  sq <- cog_shape("polygon", list(sides = 4), size = 0.95, strokeWidth = 3)
+  expect_lt(cogitem:::outer_clear_radius(tri), 20)
+  expect_gt(cogitem:::outer_clear_radius(sq), 25)
+  expect_lt(cogitem:::inner_scale_for(list(tri, sq)), 0.3)
+  expect_equal(cogitem:::inner_scale_for(list(sq)), 0.36)
+  # polygon addition always has a triangle in every row
+  set <- generate_layered(c("polygon", "addition"), c("grid-dots", "dist-of-3"), n = 2, seed = 5)
+  expect_equal(length(set), 2)
+  for (it in set) {
+    sc <- it$meta$inner_scale
+    expect_lt(sc, 0.36)
+    shapes <- c(do.call(c, it$cells), it$options)
+    expect_true(all(vapply(shapes, function(s) isTRUE(all.equal(s$inner_scale, sc)), TRUE)))
+    # the disc stays inside the clear interior of every outer carrier
+    disc <- cogitem:::KNOCKOUT_RADIUS * sc / cogitem:::INNER_SCALE
+    expect_true(all(vapply(shapes, function(s) cogitem:::outer_clear_radius(s$layers[[1]]) >= disc, TRUE)))
+    expect_true(is_item_valid(it))
+  }
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_silent(plot(set[[1]], show_answer = TRUE))
+})
+

@@ -35,6 +35,9 @@
   exactly one answer per item (late clicks are ignored).
 * Design-feature records for explanatory IRT / LLTM analyses
   (`item_features()`, `q_matrix()`).
+* Two-layer items scale the inner layer and the disc under it to the clear
+  interior of the narrowest outer carrier in the item (`meta$inner_scale`),
+  so a triangle keeps its edges intact.
 * Redesigned Shiny interface: grouped sidebar forms, an empty state, a
   statistics strip and a one-item-at-a-time viewer after generation (arrow
   keys page through the set), design features and

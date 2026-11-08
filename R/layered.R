@@ -12,7 +12,8 @@ LAYER_RULE_EXCLUDED <- "dist-of-2" # blank cells make no sense inside a layer
 OUTER_SIZE <- 0.95
 INNER_SCALE <- 0.36          # inner layer viewport as a fraction of the cell box
 INNER_LWD_BOOST <- 1.5       # inner strokes are drawn a little heavier than pure scaling
-KNOCKOUT_RADIUS <- 20        # white disc under the inner layer (cell units, 0-100)
+KNOCKOUT_RADIUS <- 20        # white disc under the inner layer (cell units, 0-100) at INNER_SCALE
+INNER_CLEARANCE <- 0.636     # half diagonal of the drawn inner content per unit of viewport side
 MAX_SPIKE_DEPTH_OUTER <- 0.5 # keeps the ring of an outer spike-ring outside the disc
 LAYER_OPTIONS <- 4L          # options each layer is generated with (at most)
 LAYER_TRIES <- 8L            # draws of a layer before an attempt is given up
@@ -48,13 +49,39 @@ layer_rules <- function(shape) {
 
 # A cell or option of a two-layer item: `layers` holds the outer and the inner
 # shape; the remaining fields exist only so that generic code sees a shape.
-stack_shape <- function(outer, inner) {
+new_stack <- function(outer, inner, inner_scale = INNER_SCALE) {
   structure(
     list(kind = "stack", size = 1, rotation = 0, fill = NA_character_,
          stroke = outer$stroke, strokeWidth = outer$strokeWidth, params = list(),
-         layers = list(outer, inner)),
+         layers = list(outer, inner), inner_scale = inner_scale),
     class = "cog_shape"
   )
+}
+
+stack_shape <- function(outer, inner, inner_scale = INNER_SCALE) new_stack(outer, inner, inner_scale)
+
+# Radius (cell units) of the clear interior of an outer carrier: the incircle
+# of a polygon or the inner boundary of a spike ring, minus half the stroke
+# and a small margin (the renderer draws polygons at 50 * 0.85 * size and
+# spike rings at 50 * 0.9 * size).
+outer_clear_radius <- function(s) {
+  p <- s$params
+  r <- switch(
+    s$kind,
+    polygon = 50 * 0.85 * s$size * cos(pi / clamp(round(p$sides %||% 3), 3, 12)),
+    "spike-ring" = 50 * 0.9 * s$size * (1 - clamp(p$spikeDepth %||% 0.35, 0.15, 0.6)),
+    KNOCKOUT_RADIUS
+  )
+  r - s$strokeWidth / 2 - 1
+}
+
+# Inner-layer scale for an item: INNER_SCALE unless the narrowest outer
+# carrier (a triangle, a deep spike ring) leaves less room; then the inner
+# viewport shrinks so that its drawn content, and the disc under it, stay
+# inside the clear interior.
+inner_scale_for <- function(outer_shapes) {
+  clear <- min(vapply(outer_shapes, outer_clear_radius, numeric(1)))
+  min(INNER_SCALE, floor(clear / INNER_CLEARANCE) / 100)
 }
 
 is_stack <- function(s) identical(s$kind, "stack")
@@ -66,8 +93,9 @@ is_stack <- function(s) identical(s$kind, "stack")
 layer_at_scale <- function(s, k) {
   x <- s$layers[[k]]
   if (k == 2L) {
-    x$size <- x$size * INNER_SCALE
-    x$strokeWidth <- x$strokeWidth * INNER_SCALE * INNER_LWD_BOOST
+    sc <- s$inner_scale %||% INNER_SCALE
+    x$size <- x$size * sc
+    x$strokeWidth <- x$strokeWidth * sc * INNER_LWD_BOOST
   }
   x
 }
@@ -89,12 +117,13 @@ all_item_shapes <- function(item) c(do.call(c, item$cells), item$options)
 
 # Grid children of a stacked cell: outer layer, white disc, inner layer.
 build_stack <- function(s, lw) {
+  sc <- s$inner_scale %||% INNER_SCALE
   outer <- build_shape(s$layers[[1]], lw)
-  disc <- circleGrob(0.5, 0.5, r = unit(KNOCKOUT_RADIUS / 100, "snpc"),
+  disc <- circleGrob(0.5, 0.5, r = unit(KNOCKOUT_RADIUS * sc / INNER_SCALE / 100, "snpc"),
                      gp = gpar(fill = PALETTE$cell, col = NA))
-  inner <- gTree(children = build_shape(s$layers[[2]], lw * INNER_SCALE * INNER_LWD_BOOST),
-                 vp = viewport(width = unit(INNER_SCALE, "snpc"),
-                               height = unit(INNER_SCALE, "snpc")))
+  inner <- gTree(children = build_shape(s$layers[[2]], lw * sc * INNER_LWD_BOOST),
+                 vp = viewport(width = unit(sc, "snpc"),
+                               height = unit(sc, "snpc")))
   do.call(gList, c(as.list(outer), list(disc, inner)))
 }
 
@@ -128,6 +157,8 @@ pin_outer_size <- function(item) {
 # layer being judged at the scale it is drawn. Fewer than n_options - 1
 # survivors leave a short item, which the generation loop rejects.
 compose_layered <- function(outer, inner, n_options) {
+  sc <- inner_scale_for(all_item_shapes(outer))
+  stack_shape <- function(o, i) new_stack(o, i, sc)
   cells <- lapply(1:3, function(r) {
     lapply(1:3, function(c) stack_shape(outer$cells[[r]][[c]], inner$cells[[r]][[c]]))
   })
@@ -213,7 +244,8 @@ compose_layered <- function(outer, inner, n_options) {
         distractor_tiers = all_tiers[perm],
         outer = layer_meta(outer),
         inner = layer_meta(inner),
-        row_only = outer$rule %in% ROW_ONLY_RULES || inner$rule %in% ROW_ONLY_RULES
+        row_only = outer$rule %in% ROW_ONLY_RULES || inner$rule %in% ROW_ONLY_RULES,
+        inner_scale = sc
       )
     ),
     class = "cog_item"
@@ -277,6 +309,8 @@ check_layer_spec <- function(spec, which) {
 #' combinations of the layers' wrong options, so any option count from 2 to
 #' 8 works. All option-uniqueness guarantees of single-layer items apply
 #' layer by layer, the inner layer being judged at the scale it is drawn
+#' (36 % of the cell, or less when the narrowest outer carrier of the item,
+#' such as a triangle, leaves less clear room; `meta$inner_scale`)
 #' (an inner stroke-width or small size step does not count as a
 #' difference). The perceptual audit is switched on by default for two-layer
 #' items (`perceptual = TRUE`); it compares the layers one by one, each at
