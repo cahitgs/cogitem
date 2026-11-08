@@ -158,3 +158,15 @@ test_that("the inner layer shrinks inside narrow outer carriers", {
   expect_silent(plot(set[[1]], show_answer = TRUE))
 })
 
+
+test_that("a shrunken inner layer keeps its line weight, so annulus counts stay legible inside triangles", {
+  set <- generate_layered(c("polygon", "addition"), c("annulus", "progression"), n = 2, seed = 1, perceptual = FALSE)
+  expect_length(set, 2)
+  it <- set[[1]]
+  expect_lt(it$meta$inner_scale, INNER_SCALE)
+  inner <- layer_at_scale(it$cells[[1]][[1]], 2)
+  expect_equal(inner$strokeWidth, it$cells[[1]][[1]]$layers[[2]]$strokeWidth * INNER_SCALE * INNER_LWD_BOOST)
+  for (spec in list(c("annulus", "addition"), c("annulus", "subtraction"))) {
+    expect_length(generate_layered(c("polygon", "subtraction"), spec, n = 1, seed = 2, perceptual = FALSE), 1)
+  }
+})

@@ -12,6 +12,12 @@
   RGB value share one signature; options that differ only in stroke or fill
   colours closer than 20 CIELAB units count as confusable, in line with the
   perceptual audit.
+* Two-layer items: the inner layer keeps its line weight when it is shrunk
+  inside a narrow outer carrier (strokes are scaled by a fixed factor, not by
+  the item's inner scale). Before, the six combinations of a polygon under
+  addition or subtraction (which always contain a triangle) with an annulus
+  under progression, addition or subtraction could not be generated at all,
+  because the thinner rings failed the hairline-ring rule.
 * `q_matrix()` reference-codes every complete categorical feature after the
   first (and all of them with `intercept = TRUE`) and warns when the matrix
   is not of full column rank, naming constant columns.

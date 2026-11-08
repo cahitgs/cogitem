@@ -12,6 +12,7 @@ LAYER_RULE_EXCLUDED <- "dist-of-2" # blank cells make no sense inside a layer
 OUTER_SIZE <- 0.95
 INNER_SCALE <- 0.36          # inner layer viewport as a fraction of the cell box
 INNER_LWD_BOOST <- 1.5       # inner strokes are drawn a little heavier than pure scaling
+INNER_LWD_FACTOR <- INNER_SCALE * INNER_LWD_BOOST # stroke factor of the inner layer, whatever its scale
 KNOCKOUT_RADIUS <- 20        # white disc under the inner layer (cell units, 0-100) at INNER_SCALE
 INNER_CLEARANCE <- 0.636     # half diagonal of the drawn inner content per unit of viewport side
 MAX_SPIKE_DEPTH_OUTER <- 0.5 # keeps the ring of an outer spike-ring outside the disc
@@ -86,16 +87,17 @@ inner_scale_for <- function(outer_shapes) {
 
 is_stack <- function(s) identical(s$kind, "stack")
 
-# Layer k of a stack as it is drawn: the inner layer fills INNER_SCALE of the
-# cell with strokes scaled by INNER_SCALE * INNER_LWD_BOOST, so the symbolic
-# perceptibility rules (count, size, stroke width, rotation) judge it at its
-# real size.
+# Layer k of a stack as it is drawn: the inner layer fills `inner_scale` of
+# the cell (INNER_SCALE, or less inside a narrow outer carrier) with strokes
+# scaled by the fixed INNER_LWD_FACTOR, so a shrunken inner layer keeps its
+# line weight and the symbolic perceptibility rules (count, size, stroke
+# width, rotation) judge it at its real size.
 layer_at_scale <- function(s, k) {
   x <- s$layers[[k]]
   if (k == 2L) {
     sc <- s$inner_scale %||% INNER_SCALE
     x$size <- x$size * sc
-    x$strokeWidth <- x$strokeWidth * sc * INNER_LWD_BOOST
+    x$strokeWidth <- x$strokeWidth * INNER_LWD_FACTOR
   }
   x
 }
@@ -121,7 +123,7 @@ build_stack <- function(s, lw) {
   outer <- build_shape(s$layers[[1]], lw)
   disc <- circleGrob(0.5, 0.5, r = unit(KNOCKOUT_RADIUS * sc / INNER_SCALE / 100, "snpc"),
                      gp = gpar(fill = PALETTE$cell, col = NA))
-  inner <- gTree(children = build_shape(s$layers[[2]], lw * sc * INNER_LWD_BOOST),
+  inner <- gTree(children = build_shape(s$layers[[2]], lw * INNER_LWD_FACTOR),
                  vp = viewport(width = unit(sc, "snpc"),
                                height = unit(sc, "snpc")))
   do.call(gList, c(as.list(outer), list(disc, inner)))
