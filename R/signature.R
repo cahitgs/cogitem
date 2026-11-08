@@ -461,22 +461,32 @@ MIN_COLOUR_DELTA_E <- 20
 # colour against no fill is always a visible change.
 colour_confusable <- function(a, b) {
   if (a$kind != b$kind) return(FALSE)
-  cols <- lapply(list(a, b), function(s) {
-    c(stroke = canonical_colour(s$stroke),
-      fill = if (attribute_visible(s, "fill")) canonical_colour(s$fill) else NA_character_)
-  })
-  x <- cols[[1]]
-  y <- cols[[2]]
-  differs <- !mapply(identical, x, y)
-  if (!any(differs)) return(FALSE)
+  sa <- canonical_colour(a$stroke)
+  sb <- canonical_colour(b$stroke)
+  fa <- if (attribute_visible(a, "fill")) canonical_colour(a$fill) else NA_character_
+  fb <- if (attribute_visible(b, "fill")) canonical_colour(b$fill) else NA_character_
+  stroke_differs <- !identical(sa, sb)
+  fill_differs <- !identical(fa, fb)
+  if (!stroke_differs && !fill_differs) return(FALSE)
+  # cheap test first: generated colours are always far apart
+  near <- function(x, y) {
+    !is.na(x) && !is.na(y) && sqrt(sum((colour_lab(x) - colour_lab(y))^2)) < MIN_COLOUR_DELTA_E
+  }
+  if (stroke_differs && !near(sa, sb)) return(FALSE)
+  if (fill_differs && !near(fa, fb)) return(FALSE)
   a$stroke <- b$stroke <- "#000000"
   a$fill <- b$fill <- NA_character_
-  if (visual_signature(a) != visual_signature(b)) return(FALSE)
-  all(vapply(which(differs), function(i) {
-    if (is.na(x[i]) || is.na(y[i])) return(FALSE)
-    lab <- srgb_to_lab(t(grDevices::col2rgb(c(x[i], y[i])) / 255))
-    sqrt(sum((lab[1, ] - lab[2, ])^2)) < MIN_COLOUR_DELTA_E
-  }, logical(1)))
+  visual_signature(a) == visual_signature(b)
+}
+
+# CIELAB coordinates of a canonical colour, memoised.
+.lab_cache <- new.env(parent = emptyenv())
+colour_lab <- function(col) {
+  hit <- .lab_cache[[col]]
+  if (!is.null(hit)) return(hit)
+  lab <- as.numeric(srgb_to_lab(t(grDevices::col2rgb(col) / 255)))
+  assign(col, lab, envir = .lab_cache)
+  lab
 }
 
 # TRUE when a and b differ in nothing but `attr` (through the visual signature).
