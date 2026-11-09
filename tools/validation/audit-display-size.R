@@ -22,11 +22,11 @@ composite <- function(shapes, px) {
 outer <- do.call(rbind, lapply(layer_shapes("outer"), function(s) data.frame(shape = s, rule = layer_rules(s, "outer"), stringsAsFactors = FALSE)))
 inner <- do.call(rbind, lapply(layer_shapes("inner"), function(s) data.frame(shape = s, rule = layer_rules(s), stringsAsFactors = FALSE)))
 pairs <- merge(outer, inner, by = NULL, suffixes = c("_o", "_i"))
-rows <- list(); t0 <- Sys.time()
+rows <- list(); t0 <- Sys.time(); skipped <- character(0)
 for (no in counts) for (k in seq_len(nrow(pairs))) {
   cb <- c(pairs$shape_o[k], pairs$rule_o[k], pairs$shape_i[k], pairs$rule_i[k])
   set <- suppressWarnings(generate_layered(cb[1:2], cb[3:4], n = 1, seed = 500L + no * 1000L + k, n_options = no))
-  if (!length(set)) next
+  if (!length(set)) { skipped <- c(skipped, sprintf("%s/%s + %s/%s with %d options", cb[1], cb[2], cb[3], cb[4], no)); next }
   it <- set[[1]]; key <- it$correct
   tiers <- it$meta$distractor_tiers
   a <- audit_item(it)                      # layer-wise, 96 px
@@ -48,7 +48,8 @@ for (no in counts) for (k in seq_len(nrow(pairs))) {
 }
 res <- do.call(rbind, rows)
 utils::write.csv(res, file.path(out, paste0(tag, ".csv")), row.names = FALSE)
-cat(sprintf("\nitems: %d | tile %d px\n", nrow(res), px_large))
+cat(sprintf("\nitems: %d of %d pair x option-count conditions | tile %d px | conditions without an item: %d\n", nrow(res), nrow(pairs) * length(counts), px_large, length(skipped)))
+if (length(skipped)) cat(paste("  no item:", skipped), sep = "\n")
 cat(sprintf("layer-wise 96 px: min %.3f | below 0.15: %d\n", min(res$layerwise_min), sum(res$layerwise_min < 0.15)))
 cat(sprintf("composite 96 px: min %.3f | below 0.15: %d | key vs inner-only below 0.15: %d of %d\n",
             min(res$comp96_min), sum(res$comp96_min < 0.15), sum(res$comp96_key_inner < 0.15, na.rm = TRUE), sum(!is.na(res$comp96_key_inner))))

@@ -34,7 +34,7 @@ test_that("the Shiny server logic generates, browses and administers items", {
     expect_equal(admin$state, "feedback")
     expect_equal(length(admin$log), 1)
     expect_true(admin$log[[1]]$correct)
-    expect_equal(admin$log[[1]]$hover_trace, "1@0;2@300")
+    expect_equal(admin$log[[1]]$hover_trace, "1@100;2@300") # first entry: time from item start
     session$setInputs(admin_next = 1)
     expect_equal(admin$pos, 2)
     session$setInputs(admin_skip = list(item = 2, rt = 800, hovers = list()))

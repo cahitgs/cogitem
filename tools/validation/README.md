@@ -63,6 +63,9 @@ at a free size, dots scaled down with it), the key and its closest inner-only
 distractor fell below the screen's constant in 177 of 1,224 items (one item
 per combination and option count), 92 of them with inner dice. With the
 0.1.3 design (inner layer pinned to the largest size bucket, dots and markers
-drawn 1.5 times larger, no shrunken inner layer, 264 combinations) the same
-measurement flags 8 of 738 items. The screen is a fixed-resolution proxy, not
-a perceptual validation; these numbers document a design decision.
+drawn 1.5 times larger, no shrunken inner layer, 264 combinations; measured
+again with 0.1.4, whose generator is unchanged) the same measurement flags
+7 of 792 items (264 combinations x 3 option counts, one item each; every
+combination produced its item, and the script now reports any that does not).
+The screen is a fixed-resolution proxy, not a perceptual validation; these
+numbers document a design decision.

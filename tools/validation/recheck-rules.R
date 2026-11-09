@@ -1,9 +1,11 @@
 # Independent re-check of generated items. The items of the evaluation sweeps
 # are regenerated from their seeds and every item is checked with code that
 # shares nothing with the generator or with is_item_valid(): the rule relation
-# is re-derived from the raw cell parameters, the key must equal the missing
-# cell parameter by parameter, and no two options may be parameter-identical.
-# Two-layer items are checked layer by layer and on the stacked options.
+# is re-derived from the raw cell parameters, the missing cell is derived from
+# the eight visible cells alone and must equal the keyed option parameter by
+# parameter (the stored ninth cell is compared as a consistency check only),
+# and no two options may be parameter-identical. Two-layer items are checked
+# layer by layer and on the stacked options.
 # usage: Rscript tools/validation/recheck-rules.R <outdir> <tag> [single counts] [layered counts] [n per layered set]
 #   e.g. Rscript tools/validation/recheck-rules.R out recheck 2,3,4,5,6,7,8 4,6,8 3
 args <- commandArgs(trailingOnly = TRUE)
@@ -127,30 +129,93 @@ rule_ok <- function(rule, shape, cells, meta) {
     NA)
 }
 
+## ---- the missing cell derived from the eight visible cells ------------------------
+# Returns the shape that the rule implies for cell (3, 3), computed from cells
+# (1,1)..(3,2) only, or NULL when the rule is unknown or the cells do not
+# determine it. The stored cell (3, 3) is not consulted.
+first_texture <- function(cells) {
+  for (r in 1:3) for (c in 1:3) {
+    if (r == 3 && c == 3) next
+    s <- cells[[r]][[c]]
+    packed <- as.integer(round(s$params$sectorPatterns %||% 0)); n <- round(s$params$sectorCount %||% 6)
+    for (i in seq_len(n)) { g <- bitwAnd(bitwShiftR(packed, as.integer(3 * (i - 1))), 7L); if (g != 0) return(g) }
+  }
+  1L
+}
+derive_missing <- function(rule, shape, cells, meta) {
+  at <- function(r, c) cells[[r]][[c]]
+  cn <- function(shapes) vapply(shapes, canon, "")
+  switch(rule,
+    identity = at(1, 1),
+    "dist-of-3" = , "dist-of-2" = {
+      # every row holds the same set of three cells; the one not yet shown in row 3 is missing
+      pool <- cells[[1]]; have <- cn(list(at(3, 1), at(3, 2)))
+      miss <- pool[!(cn(pool) %in% have)]
+      if (length(miss) == 1) miss[[1]] else NULL
+    },
+    progression = {
+      pa <- meta$primary_axis
+      if (is.null(pa) || is.null(get_attr(at(1, 3), pa))) return(NULL)
+      set_attr(at(3, 2), pa, get_attr(at(1, 3), pa))   # column 3 value from row 1, row 3 attributes from cell (3, 2)
+    },
+    rotation = {
+      step <- (at(1, 2)$rotation - at(1, 1)$rotation) %% 360
+      set_attr(at(3, 2), "rotation", (at(3, 2)$rotation + step) %% 360)
+    },
+    mirror = {
+      flip <- function(s) set_attr(s, "rotation", (s$rotation + 180) %% 360)
+      if (identical(meta$mirror_axis, "horizontal")) flip(at(1, 3)) else if (identical(meta$mirror_axis, "vertical")) flip(at(3, 1)) else NULL
+    },
+    addition = , subtraction = , multiplication = {
+      pn <- COUNT_PARAM[shape]; if (is.na(pn)) return(NULL)
+      a <- at(3, 1)$params[[pn]]; b <- at(3, 2)$params[[pn]]; if (is.null(a) || is.null(b)) return(NULL)
+      s <- at(3, 1); s$params[[pn]] <- arith(rule, a, b); s
+    },
+    and = , or = , xor = , xnor = {
+      m1 <- presence_mask(at(3, 1)); m2 <- presence_mask(at(3, 2)); if (is.null(m1) || is.null(m2) || m1[2] != m2[2]) return(NULL)
+      res <- bool_op(rule, m1[1], m2[1], 2^m1[2] - 1)
+      s <- at(3, 1)
+      if (shape == "checkerboard") {
+        s$params$pattern <- res
+      } else {
+        tex <- first_texture(cells); packed <- 0L
+        for (i in seq_len(m1[2])) if (bitwAnd(as.integer(res), bitwShiftL(1L, as.integer(i - 1))) != 0) packed <- bitwOr(packed, bitwShiftL(as.integer(tex), as.integer(3 * (i - 1))))
+        s$params$sectorPatterns <- packed
+      }
+      s
+    },
+    NULL)
+}
+
 check_item <- function(it) {
   opts <- it$options
-  key_ok <- canon(opts[[it$correct]]) == canon(it$cells[[3]][[3]])
+  key <- opts[[it$correct]]
+  key_ok <- canon(key) == canon(it$cells[[3]][[3]])                 # stored target, consistency only
   distinct_ok <- anyDuplicated(vapply(opts, canon, "")) == 0
   if (identical(it$type, "layered")) {
-    rules <- character(0); oks <- logical(0)
+    rules <- character(0); oks <- logical(0); derived_ok <- TRUE
     for (k in 1:2) {
       lay <- if (k == 1) it$meta$outer else it$meta$inner
       cells <- lapply(it$cells, function(row) lapply(row, function(s) s$layers[[k]]))
       rules <- c(rules, lay$rule); oks <- c(oks, isTRUE(rule_ok(lay$rule, lay$shape, cells, lay)))
+      d <- derive_missing(lay$rule, lay$shape, cells, lay)
+      derived_ok <- derived_ok && !is.null(d) && canon(d) == canon(key$layers[[k]])
     }
     # the key must differ from every distractor in at least one layer, and
     # every distractor must be wrong in at least one layer (parameter-wise)
-    key <- opts[[it$correct]]
     wrong_ok <- all(vapply(setdiff(seq_along(opts), it$correct), function(j) {
       canon(opts[[j]]$layers[[1]]) != canon(key$layers[[1]]) || canon(opts[[j]]$layers[[2]]) != canon(key$layers[[2]])
     }, TRUE))
     rule_res <- all(oks); note <- if (rule_res) "" else paste(rules[!oks], collapse = "+")
     return(data.frame(id = it$id, type = "layered", shape = it$shape, rule = it$rule, n_options = length(opts),
-                      key_ok = key_ok, distinct_ok = distinct_ok && wrong_ok, rule_ok = rule_res, note = note, stringsAsFactors = FALSE))
+                      key_ok = key_ok, key_derived_ok = derived_ok, distinct_ok = distinct_ok && wrong_ok, rule_ok = rule_res,
+                      note = note, stringsAsFactors = FALSE))
   }
   r <- rule_ok(it$rule, it$shape, it$cells, it$meta %||% list())
+  d <- derive_missing(it$rule, it$shape, it$cells, it$meta %||% list())
   data.frame(id = it$id, type = "single", shape = it$shape, rule = it$rule, n_options = length(opts),
-             key_ok = key_ok, distinct_ok = distinct_ok, rule_ok = isTRUE(r), note = if (is.na(r)) "rule not checked" else "", stringsAsFactors = FALSE)
+             key_ok = key_ok, key_derived_ok = !is.null(d) && canon(d) == canon(key), distinct_ok = distinct_ok, rule_ok = isTRUE(r),
+             note = if (is.na(r)) "rule not checked" else "", stringsAsFactors = FALSE)
 }
 
 ## ---- regenerate the sweep items and check them -------------------------------------
@@ -187,11 +252,11 @@ cat(sprintf("\nsets: single %d (items %d, attempts %d, max attempts per set %d),
             sum(gen$type == "single"), sum(gen$items[gen$type == "single"]), sum(gen$attempts[gen$type == "single"]), max(gen$attempts[gen$type == "single"]),
             sum(gen$type == "layered"), sum(gen$items[gen$type == "layered"]), sum(gen$requested[gen$type == "layered"]),
             sum(gen$attempts[gen$type == "layered"]), mean(gen$attempts[gen$type == "layered"]), max(gen$attempts[gen$type == "layered"])))
-fail <- res[!(res$key_ok & res$distinct_ok & res$rule_ok), ]
+fail <- res[!(res$key_ok & res$key_derived_ok & res$distinct_ok & res$rule_ok), ]
 utils::write.csv(fail, file.path(out, paste0(tag, "-failures.csv")), row.names = FALSE)
-cat(sprintf("\nitems checked: %d (single %d, two-layer %d) | key = missing cell: %d | options parameter-distinct: %d | rule relation holds: %d | all three: %d\n",
-            nrow(res), n_single, nrow(res) - n_single, sum(res$key_ok), sum(res$distinct_ok), sum(res$rule_ok), nrow(res) - nrow(fail)))
+cat(sprintf("\nitems checked: %d (single %d, two-layer %d) | key derived from the eight visible cells: %d | key = stored target: %d | options parameter-distinct: %d | rule relation holds: %d | all checks: %d\n",
+            nrow(res), n_single, nrow(res) - n_single, sum(res$key_derived_ok), sum(res$key_ok), sum(res$distinct_ok), sum(res$rule_ok), nrow(res) - nrow(fail)))
 cat("by rule (items, all checks passed):\n")
-print(do.call(rbind, lapply(split(res, res$rule), function(d) data.frame(items = nrow(d), passed = sum(d$key_ok & d$distinct_ok & d$rule_ok)))))
+print(do.call(rbind, lapply(split(res, res$rule), function(d) data.frame(items = nrow(d), passed = sum(d$key_ok & d$key_derived_ok & d$distinct_ok & d$rule_ok)))))
 if (nrow(fail)) { cat("\nFAILURES:\n"); print(utils::head(fail, 30)) }
 cat(sprintf("\nelapsed %.0f s\n", as.numeric(difftime(Sys.time(), t0, units = "secs"))))

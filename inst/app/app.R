@@ -502,13 +502,14 @@ server <- function(input, output, session) {
 
   record <- function(chosen, rt, hovers) {
     it <- current_item()
-    # hover trace "option@deltaMs;..." (1-based option, delta = time since the
-    # previous hover)
+    # hover trace "option@ms;..." (1-based option; the first ms value is the time
+    # from the start of the item to the first hover, later values the time since
+    # the previous hover)
     hv <- character(0)
     if (length(hovers)) {
       ts <- vapply(hovers, function(h) as.numeric(h$t), 0)
       hv <- sprintf("%d@%d", vapply(hovers, function(h) as.integer(h$i), 0L),
-                    as.integer(c(0, diff(ts))))
+                    as.integer(c(ts[1], diff(ts))))
     }
     admin$log[[length(admin$log) + 1]] <- data.frame(
       participant = input$participant,

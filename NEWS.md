@@ -1,3 +1,15 @@
+# cogitem 0.1.4
+
+* The hover trace of the application's results log records, as its first
+  entry, the time from the start of the item to the first hover (it was stored
+  as 0); later entries are, as before, the time since the previous hover.
+* `tools/validation/check-log.R` also compares the logged hover times with the
+  scripted dispatch times and tightens the response-time tolerance to 1 s;
+  `recheck-rules.R` derives the missing cell from the eight visible cells
+  alone and compares it with the keyed option (the stored ninth cell is used
+  as a consistency check only); `audit-display-size.R` reports the
+  combinations for which no item was generated.
+
 # cogitem 0.1.3
 
 * The image-similarity screen (`audit_items()`, `perceptual = TRUE`) is off by

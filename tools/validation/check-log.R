@@ -2,8 +2,11 @@
 # process, generates a known item set, answers every item through a headless
 # browser with known choices, known hover events and known delays, downloads
 # the results CSV and compares it with what was scripted and with the keys of
-# the same item set regenerated in this process. Needs the suggested packages
-# shiny, bslib, callr and chromote (and a Chrome or Edge installation).
+# the same item set regenerated in this process. It checks the logging
+# pipeline (rows, keys, choices, hover order and hover times, response times
+# relative to the client-side start of each item); it does not measure the
+# display latency of the screen. Needs the suggested packages shiny, bslib,
+# callr and chromote (and a Chrome or Edge installation).
 # usage: Rscript tools/validation/check-log.R <outdir> [port]
 args <- commandArgs(trailingOnly = TRUE)
 out <- if (length(args)) args[1] else "check-log"
@@ -69,9 +72,11 @@ Sys.sleep(0.6)
 run("document.getElementById('start').click();")
 wait_for("document.querySelectorAll('.cog-opt').length > 0")
 started <- Sys.time()
+hover_at <- lapply(seq_len(n_items), function(k) numeric(0)) # time since item start at which each hover was dispatched (ms, client clock)
 for (k in seq_len(n_items)) {
   Sys.sleep(0.6) # the item is on screen; cogStart was set when the server sent it
   for (h in hovers[[k]]) {
+    hover_at[[k]] <- c(hover_at[[k]], as.numeric(js("Date.now() - window.cogStart")))
     run(sprintf("var o=document.querySelectorAll('.cog-opt'); if(o.length>=%d){o[%d].dispatchEvent(new MouseEvent('mouseenter',{bubbles:false}));}", h, h - 1L))
     Sys.sleep(0.15)
   }
@@ -98,11 +103,21 @@ Sys.sleep(0.5)
 log <- utils::read.csv(files[1], stringsAsFactors = FALSE)
 
 ## ---- compare -------------------------------------------------------------------
+# The hover trace stores "option@ms" entries: the first ms value is the time from
+# the start of the item to the first hover, later values the time since the
+# previous hover; cumulative sums are therefore comparable with the dispatch
+# times recorded above. All times are client-side (from the moment the item's
+# HTML was placed); the display latency of the screen is not measured here.
+trace <- strsplit(ifelse(is.na(log$hover_trace), "", log$hover_trace), ";", fixed = TRUE)
+trace_opts <- vapply(trace, function(x) paste(sub("@.*", "", x), collapse = ","), "")
+trace_times <- lapply(trace, function(x) if (length(x) && nzchar(x[1])) cumsum(as.numeric(sub(".*@", "", x))) else numeric(0))
+hover_dev <- unlist(mapply(function(logged, dispatched) if (length(logged) == length(dispatched)) abs(logged - dispatched) else Inf, trace_times, hover_at, SIMPLIFY = FALSE))
+rt_tol <- 1000
 checks <- data.frame(
   check = c("one row per item, in order", "participant id recorded", "item ids are those of the regenerated set",
             "keys equal the regenerated keys", "chosen options equal the scripted clicks", "correct = chosen equals key",
-            "no item marked skipped", "response times within [delay, delay + 2500 ms]", "hover counts equal the scripted hover events",
-            "hover traces name the hovered options in order"),
+            "no item marked skipped", sprintf("response times within [delay, delay + %d ms]", rt_tol), "hover counts equal the scripted hover events",
+            "hover traces name the hovered options in order", "hover times within 500 ms of the scripted dispatch times"),
   passed = c(
     nrow(log) == n_items && identical(log$item_number, seq_len(n_items)),
     all(log$participant == participant),
@@ -111,15 +126,17 @@ checks <- data.frame(
     identical(as.integer(log$chosen_option), picks),
     identical(as.logical(log$correct), picks == keys),
     !any(as.logical(log$skipped)),
-    all(log$rt_ms >= delays & log$rt_ms <= delays + 2500),
+    all(log$rt_ms >= delays & log$rt_ms <= delays + rt_tol),
     identical(as.integer(log$hover_count), lengths(hovers)),
-    identical(vapply(strsplit(ifelse(is.na(log$hover_trace), "", log$hover_trace), ";", fixed = TRUE), function(x) paste(sub("@.*", "", x), collapse = ","), ""),
-              vapply(hovers, function(h) paste(h, collapse = ","), ""))
+    identical(trace_opts, vapply(hovers, function(h) paste(h, collapse = ","), "")),
+    length(hover_dev) == sum(lengths(hovers)) && all(hover_dev <= 500)
   ), stringsAsFactors = FALSE)
 print(checks, row.names = FALSE)
-utils::write.csv(cbind(log, scripted_pick = picks, scripted_delay = delays, scripted_hovers = lengths(hovers)),
+utils::write.csv(cbind(log, scripted_pick = picks, scripted_delay = delays, scripted_hovers = lengths(hovers),
+                       scripted_hover_times = vapply(hover_at, function(x) paste(round(x), collapse = ";"), "")),
                  file.path(out, "log-vs-script.csv"), row.names = FALSE)
 utils::write.csv(checks, file.path(out, "checks.csv"), row.names = FALSE)
 cat(sprintf("\n%d of %d checks passed; log: %s\n", sum(checks$passed), nrow(checks), basename(files[1])))
 cat(sprintf("response times (ms): scripted %s | logged %s\n", paste(delays, collapse = " "), paste(log$rt_ms, collapse = " ")))
+cat(sprintf("hover times: %d events, largest deviation from the dispatch time %.0f ms\n", length(hover_dev), if (length(hover_dev)) max(hover_dev) else NA_real_))
 if (!all(checks$passed)) quit(status = 1)
