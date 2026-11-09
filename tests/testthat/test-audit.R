@@ -73,7 +73,7 @@ test_that("the png fallback renderer gives usable distances", {
     args <- list(f, width = 20, height = 20)
     if (isTRUE(capabilities("cairo"))) args$type <- "cairo"
     do.call(grDevices::png, args)
-    graphics::plot.new() # a device writes its file only once a page exists
+    grid::grid.newpage() # a device writes its file only once a page exists
     grDevices::dev.off()
     file.exists(f)
   }, error = function(e) FALSE)
