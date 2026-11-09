@@ -1,3 +1,18 @@
+# cogitem 0.1.5
+
+* Administer panel, test mode: the matrix is drawn at a fixed 500 px (cells of
+  147 px) and response options in tiles of at least 164 px (figure area of at
+  least 144 px); the options wrap below the matrix when two tiles no longer
+  fit beside it, and the session sidebar closes while items are on screen and
+  reopens afterwards. Before, matrix cells were about 123 px on common window
+  sizes, below the 144 px for which two-layer items are designed (the
+  statement in the 0.1.3 notes that the application drew matrix cells at that
+  size was wrong for the matrix).
+* New `tools/validation/layered-rejections.R`: replays the two-layer sets of
+  the evaluation and reports why candidates were rejected (no admissible
+  outer or inner layer, composition without a single-layer distractor,
+  composed item failing the design constraints).
+
 # cogitem 0.1.4
 
 * The hover trace of the application's results log records, as its first

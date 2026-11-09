@@ -211,7 +211,13 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--cog-display); font-weight: 600; lett
 .cog-dot.bad { background: var(--cog-brick); }
 
 /* Administer: test mode */
-.cog-test { max-width: 1040px; margin: 0 auto; }
+.cog-test { max-width: 1200px; margin: 0 auto; }
+/* Test mode: the matrix has a fixed size (500 px, cells of 147 px); the options
+   take the remaining width and wrap below the matrix when two tiles no longer
+   fit beside it. */
+.cog-test-body { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; }
+.cog-paper.cog-test-matrix { flex: 0 0 auto; padding: 0.75rem; }
+.cog-test-options { flex: 1 1 380px; min-width: 0; }
 .cog-test-head {
   display: flex;
   align-items: baseline;
@@ -231,7 +237,8 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--cog-display); font-weight: 600; lett
 .cog-question { font-size: 0.9rem; color: var(--cog-graphite); margin-bottom: 0.75rem; }
 .cog-opts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  /* 164 px tiles leave a figure area of at least 144 px (2 px border, 8 px inset) */
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
   gap: 0.75rem;
 }
 .cog-opt {
@@ -256,7 +263,7 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--cog-display); font-weight: 600; lett
 }
 .cog-opt .shiny-plot-output {
   position: absolute;
-  inset: 12px;
+  inset: 8px;
   width: auto !important;
   height: auto !important;
 }

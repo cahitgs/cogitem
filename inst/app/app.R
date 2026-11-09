@@ -152,6 +152,7 @@ ui <- page_navbar(
     "Administer",
     layout_sidebar(
       sidebar = sidebar(
+        id = "admin_sidebar",
         width = 320,
         section("Session"),
         textInput("participant", "Participant id", "P001"),
@@ -183,7 +184,8 @@ ui <- page_navbar(
         p("The image-similarity screen renders every option and matrix cell and rejects items in ",
           "which two renderings are nearly identical at a fixed resolution; it is a development ",
           "tool, not a test of human perception. Items are designed for cells of at least 144 px; ",
-          "the application draws matrix cells and options at that size or larger."),
+          "the test mode of the Administer panel draws matrix cells and response options at that ",
+          "size or larger."),
         p("Item sets are saved as .rds files (readable with readRDS() in R) and can be ",
           "reloaded in the Administer tab."),
         p(class = "cog-muted mb-0", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
@@ -554,6 +556,17 @@ server <- function(input, output, session) {
     advance()
   })
   observeEvent(input$admin_next, advance())
+
+  # The session sidebar is closed while items are on screen, so that the matrix
+  # and the options have room at their full size, and reopened afterwards.
+  sidebar_closed <- reactiveVal(FALSE)
+  observeEvent(admin$state, {
+    testing <- admin$state %in% c("playing", "feedback")
+    if (!identical(testing, sidebar_closed())) {
+      sidebar_closed(testing)
+      try(bslib::toggle_sidebar("admin_sidebar", open = !testing), silent = TRUE)
+    }
+  }, ignoreInit = TRUE)
   observeEvent(input$admin_restart, reset_admin())
 
   output$admin_status <- renderUI({
@@ -615,10 +628,12 @@ server <- function(input, output, session) {
           if (enabled) tags$button(class = "btn btn-sm btn-outline-secondary", onclick = "cogSkip()", "Skip")),
       div(class = "cog-progress",
           tags$span(style = sprintf("width: %.1f%%;", 100 * (admin$pos - 1) / max(1, total)))),
-      layout_columns(
-        col_widths = c(6, 6),
-        div(class = "cog-paper", plotOutput("admin_matrix", height = "500px")),
-        div(class = "cog-paper",
+      # The matrix is drawn at a fixed 500 px (cells of 147 px) and the option
+      # tiles never fall below 164 px (figure area 144 px); see cogitem.css.
+      div(
+        class = "cog-test-body",
+        div(class = "cog-paper cog-test-matrix", plotOutput("admin_matrix", width = "500px", height = "500px")),
+        div(class = "cog-paper cog-test-options",
             p(class = "cog-question", "Which option completes the matrix? Click it or press its number."),
             div(class = "cog-opts", !!!opts),
             if (admin$state == "feedback")

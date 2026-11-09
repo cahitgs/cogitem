@@ -14,7 +14,7 @@ a Shiny application for computerised administration.
 
 ```r
 # install.packages("remotes")
-remotes::install_github("cahitgs/cogitem@v0.1.4")   # release described in the paper
+remotes::install_github("cahitgs/cogitem@v0.1.5")   # release described in the paper
 remotes::install_github("cahitgs/cogitem")           # development version
 ```
 
@@ -150,7 +150,10 @@ rule, optional inner layer, n, seed, option count; items shown one at a time wit
 screen-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, answered by click or number
 key, logging the chosen option, response time and the hover trace of every
-option, with a results summary and CSV export) and **About**. The interface
+option, with a results summary and CSV export) and **About**. While items are
+on screen the session sidebar closes, the matrix is drawn at a fixed 500 px
+(cells of 147 px) and the option tiles keep a figure area of at least 144 px,
+the size for which two-layer items are designed. The interface
 ships its own typefaces (Fraunces and Manrope, SIL Open Font License) and
 needs no internet connection. With **callr** installed, generation runs in a background R
 process with a progress bar and a *Stop* button that keeps the items produced

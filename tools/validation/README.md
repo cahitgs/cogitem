@@ -18,6 +18,10 @@ Rscript tools/validation/recheck-rules.R <outdir> recheck 2,3,4,5,6,7,8 4,6,8 3
 # structural duplicates for every shape x rule combination and option count
 Rscript tools/validation/sweep-attempts.R <outdir> attempts 2,3,4,5,6,7,8
 
+# why two-layer candidates are rejected (no admissible outer or inner layer,
+# composition without a single-layer distractor, design constraints)
+Rscript tools/validation/layered-rejections.R <outdir> layered-rejections 4,6,8 3
+
 # cross-platform reproducibility: reference set + MD5 hash of its structure
 # (the GitHub Actions workflow "reproducibility" compares Ubuntu, Windows, macOS)
 Rscript tools/validation/reproducibility.R <outdir>
