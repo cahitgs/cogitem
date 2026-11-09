@@ -56,6 +56,10 @@ render_tiles <- function(shapes, px) {
     draw_all()
     grDevices::dev.off()
     open <- FALSE
+    if (!file.exists(f)) {
+      stop("The png device did not write a file (a headless system without cairo?); ",
+           "install the 'ragg' package or set options(cogitem.raster = 'ragg')", call. = FALSE)
+    }
     full <- to_rgb_array(png::readPNG(f))
   } else {
     stop(sprintf("Unknown raster engine '%s' (option cogitem.raster)", engine), call. = FALSE)

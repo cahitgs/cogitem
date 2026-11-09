@@ -67,6 +67,16 @@ test_that("generate_items(perceptual = TRUE) records the audit in meta", {
 })
 test_that("the png fallback renderer gives usable distances", {
   skip_if_not_installed("png")
+  # a headless system may have a png device that writes nothing
+  png_ok <- tryCatch({
+    f <- tempfile(fileext = ".png")
+    args <- list(f, width = 20, height = 20)
+    if (isTRUE(capabilities("cairo"))) args$type <- "cairo"
+    do.call(grDevices::png, args)
+    grDevices::dev.off()
+    file.exists(f)
+  }, error = function(e) FALSE)
+  skip_if_not(png_ok, "the png device cannot write files on this system")
   old <- options(cogitem.raster = "png")
   on.exit(options(old), add = TRUE)
   a <- cog_shape("dice", list(dotCount = 3), size = 0.65)
