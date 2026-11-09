@@ -14,7 +14,8 @@ a Shiny application for computerised administration.
 
 ```r
 # install.packages("remotes")
-remotes::install_github("cahitgs/cogitem")
+remotes::install_github("cahitgs/cogitem@v0.1.4")   # release described in the paper
+remotes::install_github("cahitgs/cogitem")           # development version
 ```
 
 ## Quick start
@@ -154,15 +155,6 @@ ships its own typefaces (Fraunces and Manrope, SIL Open Font License) and
 needs no internet connection. With **callr** installed, generation runs in a background R
 process with a progress bar and a *Stop* button that keeps the items produced
 so far.
-
-## Related software
-
-* matRiks (Brancaccio, Epifania, Anselmi & de Chiusole, 2025), an R package
-  generating Raven-like matrices with rule-based distractors.
-* IMak (Blum & Holling, 2018), an R package generating figural analogies.
-* Sandia Matrices (Matzen et al., 2010), the Java generator of Raven-like
-  matrices.
-* Corvus (Thimbleby), a browser-based generator of Raven-like matrices.
 
 ## License
 
