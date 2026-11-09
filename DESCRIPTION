@@ -1,7 +1,7 @@
 Package: cogitem
 Type: Package
 Title: Rule-Based Automatic Generation of Raven-Like Matrix Items
-Version: 0.1.2
+Version: 0.1.3
 Authors@R: person("Mehmet Cahit", "Marangoz", email = "cahitgs@gmail.com",
     role = c("aut", "cre"))
 Description: Generates Raven-like 3x3 figural matrix items from an explicit
@@ -9,8 +9,10 @@ Description: Generates Raven-like 3x3 figural matrix items from an explicit
     rule (constant, distribution of two or three, two-axis progression,
     rotation, mirror, figure addition, subtraction and multiplication, and the
     bitwise logic rules AND, OR, XOR and XNOR). The response options of every
-    item are checked for visual distinctness with symmetry-aware signatures
-    and an optional renderer-based perceptual audit; generation is seeded and
+    item are checked for distinctness with symmetry-aware symbolic signatures
+    and explicit design constraints on count, size, stroke-width, rotation
+    and colour differences (an experimental image-similarity screen is
+    optional); generation is seeded and
     reproducible, and every item carries a design-feature record that serves
     as a Q-matrix in linear logistic test model (LLTM) analyses. Items are
     drawn with 'grid' and

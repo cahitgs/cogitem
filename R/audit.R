@@ -1,7 +1,8 @@
-# Perceptual audit: render shapes to small rasters and measure how different
-# they look, independent of the symbolic visual_signature(). Catches cases in
-# which two configurations are nominally different (e.g. size 0.80 vs 0.82)
-# but indistinguishable to the eye.
+# Image-similarity screen (experimental): render shapes to small rasters and
+# measure how different the renderings are, independent of the symbolic
+# visual_signature(). Catches cases in which two configurations are nominally
+# different (e.g. size 0.80 vs 0.82) but render nearly identically. It is a
+# fixed-resolution proxy, not a test of human perception.
 
 DEFAULT_PERCEPTUAL_THRESHOLD <- 0.15
 
@@ -150,7 +151,7 @@ layer_distance <- function(layers, i, j) {
   max(vapply(layers, function(tiles) tile_distance(tiles[[i]], tiles[[j]]), numeric(1)))
 }
 
-#' Perceptual distance between two shape configurations
+#' Image-similarity distance between two shape configurations (experimental)
 #'
 #' Renders both configurations to small rasters, converts them to CIELAB,
 #' blurs them slightly (so that a sub-pixel shift does not count as a
@@ -166,17 +167,19 @@ layer_distance <- function(layers, i, j) {
 #' 1 % size change about 0.10; 2.5 % size change 0.16; heptagon vs octagon
 #' 0.18; pentagon vs hexagon 0.29; gray vs green stroke 0.33; blue vs purple
 #' stroke 0.45; one size bucket of the generator (0.65 vs 0.80) 0.63; marker
-#' in another corner 0.84. Two configurations are called *perceptually
-#' confusable* when the distance falls below 0.15 (the default `threshold` of
-#' [audit_items()]). Count differences that are hard to perceive (15 vs 16
-#' spikes, 7 vs 8 sides) are handled by the symbolic rules of
+#' in another corner 0.84. Two renderings are flagged as near-identical when
+#' the distance falls below 0.15 (the default `threshold` of
+#' [audit_items()]), a constant chosen by inspecting rendered examples; the
+#' metric has not been validated against human observers and is provided as
+#' an experimental development tool. Small count differences (15 vs 16
+#' spikes, 7 vs 8 sides) are handled by the symbolic design constraints of
 #' [is_item_valid()] rather than by this metric.
 #'
 #' Options and cells of two-layer items (see [generate_layered()]) are
 #' compared layer by layer, each layer rendered on its own at full tile
-#' size, and the distance is the larger of the two layer distances: a
-#' blurred tile of the whole cell cannot resolve the inner carrier, which
-#' fills only 36 % of the cell, whereas a person looking at it can.
+#' size, and the distance is the larger of the two layer distances, because
+#' a blurred tile of the whole cell cannot resolve the inner carrier, which
+#' fills only 36 % of the cell.
 #'
 #' Requires the **ragg** package or, as a fallback, the **png** package
 #' (the engine can be forced with `options(cogitem.raster = "png")`).
@@ -223,14 +226,17 @@ cell_pairs <- function(item) {
   out
 }
 
-#' Perceptual audit of items
+#' Image-similarity screen for items (experimental)
 #'
 #' Checks that every pair of response options, and every pair of
 #' nominally different cells that share a row or a column of the matrix,
-#' looks different to the eye according to [perceptual_distance()]. The
-#' symbolic uniqueness check of [is_item_valid()] cannot see, for example,
-#' that two shapes of size 0.80 and 0.82 render almost identically; this
-#' audit can. `audit_item()` audits one item, `audit_items()` a whole set and
+#' renders differently according to [perceptual_distance()]. The symbolic
+#' checks of [is_item_valid()] cannot see, for example, that two shapes of
+#' size 0.80 and 0.82 render almost identically; this screen can. It is an
+#' experimental development tool: it flags renderings that are nearly
+#' identical at a fixed resolution and blur, and it does not establish that
+#' observers tell the remaining pairs apart. `audit_item()` screens one
+#' item, `audit_items()` a whole set and
 #' returns one row per item with the smallest option distance, the smallest
 #' cell distance, the pairs where they occur and a `flagged` column. Items
 #' with `flagged = TRUE` should be dropped (`x[!audit_items(x)$flagged]`) or
@@ -239,7 +245,7 @@ cell_pairs <- function(item) {
 #'
 #' @param item A `cog_item`.
 #' @param x A `cog_item_set`.
-#' @param threshold Distances below this value count as confusable.
+#' @param threshold Distances below this value count as near-identical.
 #' @param px,blur Passed to [perceptual_distance()].
 #' @return `audit_item()` returns a list with `min_option_distance`,
 #'   `option_pair`, `min_cell_distance`, `cell_pair`, `flagged` and the full

@@ -26,14 +26,15 @@ subset of \code{\link[=supported_combinations]{supported_combinations()}}.}
 
 \item{shuffle}{Shuffle the combined item order?}
 
-\item{perceptual}{Also run the renderer-based \code{\link[=audit_item]{audit_item()}} on every
-candidate and discard items whose options or cells are perceptually
-confusable. Slower (each item is rasterised) and needs \strong{ragg} or a
-cairo-capable R; the result is reproducible for a given seed on the same
-graphics stack.}
+\item{perceptual}{Also run the experimental image-similarity screen
+(\code{\link[=audit_item]{audit_item()}}) on every candidate and discard items in which two
+options or two cells render nearly identically at 96 px. Off by default
+for every item type. Slower (each item is rasterised) and needs \strong{ragg}
+or a cairo-capable R; the result is reproducible for a given seed on the
+same graphics stack.}
 
 \item{perceptual_threshold}{Distance below which two renderings count as
-confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
+near-identical, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 }
 \value{
 A \code{cog_item_set}.

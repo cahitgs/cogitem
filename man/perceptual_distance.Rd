@@ -2,7 +2,7 @@
 % Please edit documentation in R/audit.R
 \name{perceptual_distance}
 \alias{perceptual_distance}
-\title{Perceptual distance between two shape configurations}
+\title{Image-similarity distance between two shape configurations (experimental)}
 \usage{
 perceptual_distance(a, b, px = 96, blur = 3)
 }
@@ -32,17 +32,19 @@ Calibration on known pairs (96 px, 3 px blur): identical 0;
 1 \% size change about 0.10; 2.5 \% size change 0.16; heptagon vs octagon
 0.18; pentagon vs hexagon 0.29; gray vs green stroke 0.33; blue vs purple
 stroke 0.45; one size bucket of the generator (0.65 vs 0.80) 0.63; marker
-in another corner 0.84. Two configurations are called \emph{perceptually
-confusable} when the distance falls below 0.15 (the default \code{threshold} of
-\code{\link[=audit_items]{audit_items()}}). Count differences that are hard to perceive (15 vs 16
-spikes, 7 vs 8 sides) are handled by the symbolic rules of
+in another corner 0.84. Two renderings are flagged as near-identical when
+the distance falls below 0.15 (the default \code{threshold} of
+\code{\link[=audit_items]{audit_items()}}), a constant chosen by inspecting rendered examples; the
+metric has not been validated against human observers and is provided as
+an experimental development tool. Small count differences (15 vs 16
+spikes, 7 vs 8 sides) are handled by the symbolic design constraints of
 \code{\link[=is_item_valid]{is_item_valid()}} rather than by this metric.
 
 Options and cells of two-layer items (see \code{\link[=generate_layered]{generate_layered()}}) are
 compared layer by layer, each layer rendered on its own at full tile
-size, and the distance is the larger of the two layer distances: a
-blurred tile of the whole cell cannot resolve the inner carrier, which
-fills only 36 \% of the cell, whereas a person looking at it can.
+size, and the distance is the larger of the two layer distances, because
+a blurred tile of the whole cell cannot resolve the inner carrier, which
+fills only 36 \% of the cell.
 
 Requires the \strong{ragg} package or, as a fallback, the \strong{png} package
 (the engine can be forced with \code{options(cogitem.raster = "png")}).

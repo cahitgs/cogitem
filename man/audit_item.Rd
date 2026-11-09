@@ -3,7 +3,7 @@
 \name{audit_item}
 \alias{audit_item}
 \alias{audit_items}
-\title{Perceptual audit of items}
+\title{Image-similarity screen for items (experimental)}
 \usage{
 audit_item(item, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3)
 
@@ -12,7 +12,7 @@ audit_items(x, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3)
 \arguments{
 \item{item}{A \code{cog_item}.}
 
-\item{threshold}{Distances below this value count as confusable.}
+\item{threshold}{Distances below this value count as near-identical.}
 
 \item{px, blur}{Passed to \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 
@@ -26,10 +26,13 @@ audit_items(x, threshold = DEFAULT_PERCEPTUAL_THRESHOLD, px = 96, blur = 3)
 \description{
 Checks that every pair of response options, and every pair of
 nominally different cells that share a row or a column of the matrix,
-looks different to the eye according to \code{\link[=perceptual_distance]{perceptual_distance()}}. The
-symbolic uniqueness check of \code{\link[=is_item_valid]{is_item_valid()}} cannot see, for example,
-that two shapes of size 0.80 and 0.82 render almost identically; this
-audit can. \code{audit_item()} audits one item, \code{audit_items()} a whole set and
+renders differently according to \code{\link[=perceptual_distance]{perceptual_distance()}}. The symbolic
+checks of \code{\link[=is_item_valid]{is_item_valid()}} cannot see, for example, that two shapes of
+size 0.80 and 0.82 render almost identically; this screen can. It is an
+experimental development tool: it flags renderings that are nearly
+identical at a fixed resolution and blur, and it does not establish that
+observers tell the remaining pairs apart. \code{audit_item()} screens one
+item, \code{audit_items()} a whole set and
 returns one row per item with the smallest option distance, the smallest
 cell distance, the pairs where they occur and a \code{flagged} column. Items
 with \code{flagged = TRUE} should be dropped (\code{x[!audit_items(x)$flagged]}) or

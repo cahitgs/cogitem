@@ -298,7 +298,8 @@ item_signature <- function(item) {
           visual_signature(item$options[[item$correct]]))
 }
 
-# Minimum count difference that is still perceptible at cell size. Small
+# Minimum count difference admitted at cell size: a design constraint set by
+# inspecting rendered examples, not validated with observers. Small
 # carriers (size below 0.6) need one more step for many-sided polygons, and
 # hairline rings (stroke width below 2) one more ring.
 min_perceptible_count_delta <- function(kind, hi, size = 0.75, sw = 2) {
@@ -540,7 +541,8 @@ rotation_confusable <- function(a, b) {
   all(invisible)
 }
 
-# Nominally different but not reliably distinguishable by eye (symbolic rules).
+# Nominally different but below the symbolic design constraints (count,
+# pattern, size, stroke width, rotation, colour).
 confusable <- function(a, b) {
   if (visual_signature(a) == visual_signature(b)) return(FALSE)
   if (is_stack(a) && is_stack(b)) {

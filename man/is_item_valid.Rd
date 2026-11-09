@@ -16,11 +16,14 @@ is_item_valid(item, n_options = NULL)
 }
 \description{
 An item passes when (a) every response option has a different
-\code{\link[=visual_signature]{visual_signature()}}, (b) no two options differ only by an imperceptibly
-small count (for example 15 versus 16 spikes) or by a single cell of a
-large checkerboard, (c) no two differing cells of the same row (and, for
-rules that also run down the columns, of the same column) differ only by
-an imperceptibly small count, (d) the keyed option reproduces the missing
+\code{\link[=visual_signature]{visual_signature()}}, (b) no two options differ only by a step below the
+package's design constraints: a small count difference (for example 15
+versus 16 spikes), a single cell of a large checkerboard, a size step
+under 0.10 of the cell, a stroke-width step under two units, a rotation
+that leaves a symmetric figure near a symmetric position or stroke
+colours closer than 20 CIELAB units, (c) no two differing cells of the
+same row (and, for rules that also run down the columns, of the same
+column) differ only by such a count step, (d) the keyed option reproduces the missing
 cell, (e) the rule is visible in the matrix (three distinct cells in every
 row of a distribution item, both axes visible in a progression item) and
 (f) the rule relation itself holds: identical cells for identity, a Latin
@@ -28,8 +31,11 @@ square for distribution of three, ordered axes for progression, constant
 steps for rotation, the flipped row or column for mirror and \verb{a op b = c}
 in every row for the arithmetic and bitwise rules, so hand-made items are
 verified too. \code{\link[=generate_items]{generate_items()}} discards items that fail this check.
-These rules are symbolic and calibrated for the attribute values that the
+These constraints are explicit design decisions, set by inspecting
+rendered examples at cell size; they have not been validated with human
+observers, and they are calibrated for the attribute values that the
 generator uses (its stroke palette, size and stroke-width steps, count
-ranges); for hand-made items with values outside that space, the
-renderer-based \code{\link[=audit_item]{audit_item()}} is the complete check and complements them.
+ranges). For hand-made items with values outside that space the
+experimental image-similarity screen (\code{\link[=audit_item]{audit_item()}}) can be run in
+addition.
 }

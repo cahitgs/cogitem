@@ -1,0 +1,53 @@
+name: reproducibility
+
+# Generates the reference item set of tools/validation/reproducibility.R on
+# three operating systems and fails when the structural hashes differ: the
+# same seed must yield the same items, identifiers included, on every
+# platform.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ${{ matrix.os }}
+    name: generate on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgload
+          needs: check
+      - name: Generate the reference set and hash it
+        run: Rscript tools/validation/reproducibility.R repro
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repro-${{ matrix.os }}
+          path: repro/
+  compare:
+    needs: generate
+    runs-on: ubuntu-latest
+    name: compare hashes
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: all
+      - name: Compare
+        shell: bash
+        run: |
+          echo "hashes:"
+          cat all/*/hash.txt
+          n=$(cut -d' ' -f1 all/*/hash.txt | sort -u | wc -l)
+          if [ "$n" -ne 1 ]; then echo "structural hashes differ between platforms"; exit 1; fi
+          echo "identical on all platforms"

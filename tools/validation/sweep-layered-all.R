@@ -1,13 +1,14 @@
 # Exhaustive two-layer sweep: every (outer shape, outer rule) x (inner shape,
 # inner rule) pair admitted by layer_shapes()/layer_rules(), generated with the
-# default settings (perceptual audit on), option pairs measured afterwards.
+# default settings (image-similarity screen off since 0.1.3), option pairs
+# measured afterwards with the screen's distance.
 # usage: Rscript sweep-layered-all.R <outdir> <tag> <counts> [n_per_pair]
 args <- commandArgs(trailingOnly = TRUE)
 out <- args[1]; tag <- args[2]
 counts <- as.integer(strsplit(args[3], ",")[[1]])
 n_per <- if (length(args) >= 4) as.integer(args[4]) else 3L
 if (requireNamespace("pkgload", quietly = TRUE) && file.exists("DESCRIPTION")) pkgload::load_all(".", quiet = TRUE) else library(cogitem)
-outer <- do.call(rbind, lapply(layer_shapes("outer"), function(s) data.frame(shape = s, rule = layer_rules(s), stringsAsFactors = FALSE)))
+outer <- do.call(rbind, lapply(layer_shapes("outer"), function(s) data.frame(shape = s, rule = layer_rules(s, "outer"), stringsAsFactors = FALSE)))
 inner <- do.call(rbind, lapply(layer_shapes("inner"), function(s) data.frame(shape = s, rule = layer_rules(s), stringsAsFactors = FALSE)))
 pairs <- merge(outer, inner, by = NULL, suffixes = c("_o", "_i"))
 cat(sprintf("outer specs %d x inner specs %d = %d pairs; counts %s; %d items per pair\n", nrow(outer), nrow(inner), nrow(pairs), paste(counts, collapse = ","), n_per))

@@ -1,3 +1,31 @@
+# cogitem 0.1.3
+
+* The image-similarity screen (`audit_items()`, `perceptual = TRUE`) is off by
+  default for two-layer items as well, and the documentation describes it as
+  an experimental, fixed-resolution development tool rather than a perceptual
+  check; the symbolic checks are described as design constraints that were set
+  by inspecting rendered examples, not validated with observers.
+* Two-layer items: both layers are pinned to one size (outer 0.95, inner 0.92,
+  the largest size bucket) and size never carries a rule or a distractor
+  inside a layer (while a layer is generated, the perturbation pool offers no
+  size distractors); the dots and markers of the inner layer are drawn 1.5 times
+  larger than pure scaling, like its strokes; outer carriers that would leave
+  less than 36 % of the cell for the inner layer (a triangle, a deep spike
+  ring) are rejected, so the inner layer is never shrunk. In consequence the
+  outer polygon no longer offers addition and subtraction, and carriers whose
+  progression needs a size axis (dice, arrow, hammer, grid-dots, checkerboard,
+  block-letter, box-lines) or whose rings become hairlines at the inner scale
+  (annulus) have no progression inside a layer (`layer_rules(shape, layer)`);
+  the admissible two-layer combinations drop from 408 to 264 (6 outer x 44
+  inner specifications). Items are designed
+  for cells of at least 144 px on screen; the application draws matrix cells
+  and options at that size or larger.
+* New validation scripts in `tools/validation/`: an independent re-check of
+  the rule relations and keys of generated items (`recheck-rules.R`), a
+  cross-platform reproducibility check (`reproducibility.R`, also run on
+  GitHub Actions) and a scripted administration session that compares the
+  downloaded log with the known answers (`check-log.R`).
+
 # cogitem 0.1.2
 
 * Two-layer items with four or more options always contain a distractor that

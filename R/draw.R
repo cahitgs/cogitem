@@ -89,7 +89,7 @@ rect_tl <- function(x, y, w, h, gp, vp = NULL) {
            gp = gp, vp = vp)
 }
 
-build_shape <- function(s, lw) {
+build_shape <- function(s, lw, boost = 1) {
   if (is_blank_cell(s)) return(gList())
   if (is_stack(s)) return(build_stack(s, lw))
   stroke <- css_color(s$stroke)
@@ -133,7 +133,7 @@ build_shape <- function(s, lw) {
       side <- 100 * 0.85 * size
       padding <- (100 - side) / 2
       cell <- side / 3
-      dot_r <- cell * 0.18
+      dot_r <- cell * 0.18 * boost
       pos <- DICE_POSITIONS[[dots]]
       gList(
         roundrectGrob(50, 50, width = side, height = side,
@@ -239,7 +239,7 @@ build_shape <- function(s, lw) {
       cols <- clamp(round(p$cols %||% 2), 1, 4)
       dot_frac <- clamp(p$dotSize %||% 0.07, 0.03, 0.14)
       inner <- 70 * size
-      dot_r <- 100 * dot_frac * size
+      dot_r <- 100 * dot_frac * size * boost
       xs <- if (cols == 1) 50 else 50 - inner / 2 + inner * (0:(cols - 1)) / (cols - 1)
       ys <- if (rows == 1) 50 else 50 - inner / 2 + inner * (0:(rows - 1)) / (rows - 1)
       g <- expand.grid(x = xs, y = ys)
@@ -341,7 +341,7 @@ build_shape <- function(s, lw) {
   if (s$kind == "hammer") {
     marker_pos <- round(p$markerPos %||% 0)
     if (marker_pos > 0) {
-      ms <- clamp(p$markerSize %||% 0.1, 0.05, 0.18) * 100
+      ms <- clamp(p$markerSize %||% 0.1, 0.05, 0.18) * 100 * boost
       inset <- 8
       xy <- switch(marker_pos,
                    c(inset, inset),

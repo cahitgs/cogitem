@@ -4,8 +4,9 @@ Rule-based automatic generation of Raven-like 3x3 matrix items in R.
 
 `cogitem` builds figural matrix items from an explicit item model (a figural
 carrier crossed with a relational rule), checks that the response options of
-every item are visually distinct (symmetry-aware signatures plus an optional
-renderer-based perceptual audit), records the design features of every
+every item are distinct (symmetry-aware symbolic signatures and explicit
+design constraints; an experimental image-similarity screen is optional),
+records the design features of every
 item for explanatory item response models, draws items with `grid`, and ships
 a Shiny application for computerised administration.
 
@@ -69,22 +70,27 @@ block letter. `supported_combinations()` lists the 60+ admissible pairs.
 
 Each response option is compared with every other option through
 `visual_signature()`, which normalises rotation by the shape's rotational
-symmetry and strips imperceptible count differences (15 versus 16 spikes).
+symmetry; a second set of design constraints rejects count, size,
+stroke-width, rotation and colour steps that are too small (15 versus 16
+spikes, a size step under 0.10 of the cell). These constraints were set by
+inspecting rendered examples at cell size, not validated with observers.
 Distractors are drawn first from rule-derived candidates (the other
 distribution variants, grid neighbours, operands, wrong operators, bit flips)
 and then from an ordered pool of perturbations (count, colour, size, fill,
 rotation, stroke width). Items that fail `is_item_valid()` are discarded and
 regenerated.
 
-### Perceptual audit
+### Image-similarity screen (experimental)
 
-The symbolic check cannot see that two configurations which differ only in
-a tiny size step render almost identically. `audit_items()` therefore
-rasterises every option and every nominally different cell pair, blurs the
-CIELAB images slightly and computes a distance in `[0, 1]` (0 = identical,
-about 1 = no overlapping ink); items whose smallest distance falls below
-0.15 are flagged. `generate_items(perceptual = TRUE)` applies the audit
-during generation and discards flagged items.
+The symbolic check cannot see that two hand-made configurations which differ
+only in a tiny size step render almost identically. `audit_items()` therefore
+rasterises every option and every nominally different cell pair at 96 px,
+blurs the CIELAB images slightly and computes a distance in `[0, 1]` (0 =
+identical, about 1 = no overlapping ink); items whose smallest distance falls
+below 0.15 are flagged. The screen is a fixed-resolution development tool: it
+has not been validated against human observers, it is off by default for
+every item type, and `generate_items(perceptual = TRUE)` switches it on during
+generation.
 
 ```r
 audit_items(items)
@@ -115,8 +121,18 @@ features record which (`distractor_tiers`, `outer_rule`, `inner_rule`,
 `n_layers`). Any option count from 2 to 8 works: each layer is generated
 with at most four options and the distractors are drawn from the
 combinations of the layers' wrong options, the inner layer being judged at
-the scale it is drawn. The perceptual audit (on by default for two-layer
-items) compares the layers one by one, each at full tile size.
+the scale it is drawn (36 % of the cell). Both layers are pinned to one size
+and size never carries a rule or a distractor in a two-layer item; the dots
+and markers of the inner layer are drawn 1.5 times larger than pure scaling.
+Outer carriers that would leave less room, a triangle or a deep spike ring,
+are rejected, so the polygon outer layer offers identity, distribution of
+three and progression (`layer_rules("polygon", "outer")`), and carriers whose
+progression needs a size axis (dice, arrow, hammer, grid-dots, checkerboard,
+block-letter, box-lines) or whose rings become hairlines at the inner scale
+(annulus) have no progression inside a layer
+(`layer_rules("dice", "inner")`). Items are designed for cells of at least
+144 px on screen; the image-similarity screen is off by default for two-layer
+items too.
 
 ```r
 items <- generate_layered(outer = c("polygon", "progression"),
@@ -130,7 +146,7 @@ layer_rules("dice")
 
 `run_app()` opens an application with four panels: **Generate** (shape,
 rule, optional inner layer, n, seed, option count; items shown one at a time with Previous/Next or the arrow keys; item-set `.rds`, feature-CSV,
-audit-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
+screen-CSV and PDF booklet downloads), **Browse** (single items with answer key and design
 features), **Administer** (one item at a time, answered by click or number
 key, logging the chosen option, response time and the hover trace of every
 option, with a results summary and CSV export) and **About**. The interface

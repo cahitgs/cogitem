@@ -84,7 +84,7 @@ new_item_set <- function(items, meta = list()) {
 #' sampling) for the duration of the call, the caller's RNG state is restored
 #' afterwards and item identifiers are derived from the seeded stream, so the
 #' result is identical in any R session with the same package version. Only
-#' the perceptual audit (`perceptual = TRUE`) depends in addition on the
+#' the optional image-similarity screen (`perceptual = TRUE`) depends in addition on the
 #' graphics engine. Items whose options are not visually distinct (see
 #' [is_item_valid()]) are discarded and regenerated; structural duplicates
 #' (see [item_signature()]) are removed.
@@ -103,16 +103,17 @@ new_item_set <- function(items, meta = list()) {
 #'   generated so far, the number requested and the number of attempts. Return
 #'   `FALSE` from it to stop early; the items produced so far are returned and
 #'   `meta$stopped` is `TRUE`. The function must not draw random numbers.
-#' @param perceptual Also run the renderer-based [audit_item()] on every
-#'   candidate and discard items whose options or cells are perceptually
-#'   confusable. Slower (each item is rasterised) and needs **ragg** or a
-#'   cairo-capable R; the result is reproducible for a given seed on the same
-#'   graphics stack.
+#' @param perceptual Also run the experimental image-similarity screen
+#'   ([audit_item()]) on every candidate and discard items in which two
+#'   options or two cells render nearly identically at 96 px. Off by default
+#'   for every item type. Slower (each item is rasterised) and needs **ragg**
+#'   or a cairo-capable R; the result is reproducible for a given seed on the
+#'   same graphics stack.
 #' @param perceptual_threshold Distance below which two renderings count as
-#'   confusable, see [perceptual_distance()].
+#'   near-identical, see [perceptual_distance()].
 #' @return An object of class `cog_item_set`: a list of `cog_item` objects
 #'   with a `meta` attribute (shape, rule, seed, counts of skipped
-#'   duplicates, invalid and perceptually ambiguous attempts).
+#'   duplicates, invalid attempts and attempts dropped by the screen).
 #' @examples
 #' items <- generate_items("annulus", "dist-of-3", n = 5, seed = 42)
 #' items
@@ -215,7 +216,7 @@ generate_loop <- function(make, n, seed, n_options, max_attempts, perceptual,
   })
 
   if (length(res$items) < n && !res$stopped) {
-    msg <- sprintf("Only %d of %d requested %s items could be generated (%d attempts, %d duplicates, %d invalid, %d perceptually ambiguous).",
+    msg <- sprintf("Only %d of %d requested %s items could be generated (%d attempts, %d duplicates, %d invalid, %d dropped by the image-similarity screen).",
                    length(res$items), n, what, res$attempts, res$duplicates,
                    res$invalid, res$ambiguous)
     if (length(res$items) == 0 && !is.null(res$last_error)) {

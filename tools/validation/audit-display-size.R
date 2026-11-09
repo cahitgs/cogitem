@@ -19,7 +19,7 @@ composite <- function(shapes, px) {
   for (i in seq_len(n - 1)) for (j in (i + 1):n) D[i, j] <- D[j, i] <- tile_distance(tiles[[i]], tiles[[j]])
   D
 }
-outer <- do.call(rbind, lapply(layer_shapes("outer"), function(s) data.frame(shape = s, rule = layer_rules(s), stringsAsFactors = FALSE)))
+outer <- do.call(rbind, lapply(layer_shapes("outer"), function(s) data.frame(shape = s, rule = layer_rules(s, "outer"), stringsAsFactors = FALSE)))
 inner <- do.call(rbind, lapply(layer_shapes("inner"), function(s) data.frame(shape = s, rule = layer_rules(s), stringsAsFactors = FALSE)))
 pairs <- merge(outer, inner, by = NULL, suffixes = c("_o", "_i"))
 rows <- list(); t0 <- Sys.time()

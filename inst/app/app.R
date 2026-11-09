@@ -114,7 +114,7 @@ ui <- page_navbar(
           textInput("seed", "Seed", "", placeholder = "random")
         ),
         sliderInput("n_options", "Response options", min = 2, max = 8, value = 4, step = 1),
-        input_switch("perceptual", "Perceptual audit (drops look-alike items, slower)", TRUE),
+        input_switch("perceptual", "Image-similarity screen (experimental, slower)", FALSE),
         conditionalPanel("output.generating != 'yes'",
                          actionButton("generate", "Generate items", class = "btn-primary w-100")),
         conditionalPanel("output.generating == 'yes'", uiOutput("generate_progress")),
@@ -176,11 +176,14 @@ ui <- page_navbar(
           "relational rule (identity, distribution of two or three, two-axis progression, ",
           "rotation, mirror, addition, subtraction, multiplication, AND, OR, XOR, XNOR), ",
           "or two carriers with two rules in a two-layer item. ",
-          "Response options are checked for visual distinctness (symbolic rules plus an ",
-          "optional perceptual audit), generation is seeded ",
+          "Response options are checked for distinctness with symbolic signatures and ",
+          "explicit design constraints (an experimental image-similarity screen is optional), ",
+          "generation is seeded ",
           "and every item carries a design-feature record for LLTM-style analyses."),
-        p("The perceptual audit renders every option and matrix cell and rejects items in ",
-          "which two of them look alike, even when they are nominally different."),
+        p("The image-similarity screen renders every option and matrix cell and rejects items in ",
+          "which two renderings are nearly identical at a fixed resolution; it is a development ",
+          "tool, not a test of human perception. Items are designed for cells of at least 144 px; ",
+          "the application draws matrix cells and options at that size or larger."),
         p("Item sets are saved as .rds files (readable with readRDS() in R) and can be ",
           "reloaded in the Administer tab."),
         p(class = "cog-muted mb-0", sprintf("cogitem version %s", utils::packageVersion("cogitem"))))
@@ -215,7 +218,7 @@ server <- function(input, output, session) {
   # Keep the rule lists consistent with the selected shapes.
   observeEvent(list(input$shape, input$layered), {
     req(input$shape)
-    ok <- if (isTRUE(input$layered)) cogitem::layer_rules(input$shape) else cogitem::supported_rules(input$shape)
+    ok <- if (isTRUE(input$layered)) cogitem::layer_rules(input$shape, "outer") else cogitem::supported_rules(input$shape)
     sel <- if (isTRUE(input$rule %in% ok)) input$rule else ok[1]
     updateSelectInput(session, "rule", choices = rule_choices_all[rule_choices_all %in% ok],
                       selected = sel)
@@ -360,9 +363,9 @@ server <- function(input, output, session) {
         stat("Seed", format(m$seed %||% NA), "reproduces this set"),
         stat("Duplicates skipped", m$duplicates_skipped %||% 0,
              sprintf("%s attempts", format(m$attempts %||% NA))),
-        stat("Dropped by audit",
+        stat("Dropped by screen",
              if (isTRUE(m$perceptual)) m$perceptual_skipped %||% 0 else "off",
-             if (isTRUE(m$perceptual)) "perceptual audit" else "audit was off"))
+             if (isTRUE(m$perceptual)) "image-similarity screen" else "screen was off"))
   })
 
   n_pages <- reactive({
@@ -401,7 +404,7 @@ server <- function(input, output, session) {
       div(class = "cog-downloads",
           downloadButton("dl_items", "Item set (.rds)", class = "btn-outline-secondary"),
           downloadButton("dl_features", "Features CSV", class = "btn-outline-secondary"),
-          downloadButton("dl_audit", "Audit CSV", class = "btn-outline-secondary"),
+          downloadButton("dl_audit", "Screen CSV", class = "btn-outline-secondary"),
           downloadButton("dl_booklet", "PDF booklet", class = "btn-outline-secondary"))
     )
   })
@@ -421,7 +424,7 @@ server <- function(input, output, session) {
   output$dl_audit <- downloadHandler(
     filename = function() paste0(stem(), "-audit.csv"),
     content = function(file) {
-      withProgress(message = "Auditing items...", {
+      withProgress(message = "Screening items...", {
         utils::write.csv(cogitem::audit_items(items()), file, row.names = FALSE)
       })
     }
@@ -462,8 +465,8 @@ server <- function(input, output, session) {
     if (is.null(a)) return(NULL)
     div(class = "cog-paper cog-audit",
         span(class = paste("cog-dot", if (a$flagged) "bad" else "ok")),
-        strong("Perceptual audit:"),
-        span(if (a$flagged) "two renderings look alike" else "passed"),
+        strong("Image-similarity screen (experimental):"),
+        span(if (a$flagged) "two renderings are nearly identical" else "passed"),
         span(class = "cog-muted",
              paste0(sprintf("smallest option distance %.2f (options %s)", a$min_option_distance, a$option_pair),
                     if (!is.na(a$min_cell_distance))
@@ -613,7 +616,7 @@ server <- function(input, output, session) {
           tags$span(style = sprintf("width: %.1f%%;", 100 * (admin$pos - 1) / max(1, total)))),
       layout_columns(
         col_widths = c(6, 6),
-        div(class = "cog-paper", plotOutput("admin_matrix", height = "440px")),
+        div(class = "cog-paper", plotOutput("admin_matrix", height = "500px")),
         div(class = "cog-paper",
             p(class = "cog-question", "Which option completes the matrix? Click it or press its number."),
             div(class = "cog-opts", !!!opts),

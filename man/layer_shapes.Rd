@@ -7,10 +7,11 @@
 \usage{
 layer_shapes(layer = c("outer", "inner"))
 
-layer_rules(shape)
+layer_rules(shape, layer = c("inner", "outer"))
 }
 \arguments{
-\item{layer}{\code{"outer"} or \code{"inner"}.}
+\item{layer}{\code{"outer"} or \code{"inner"} (for \code{layer_rules()} the default is
+\code{"inner"}).}
 
 \item{shape}{One of \code{\link[=cog_shapes]{cog_shapes()}}.}
 }
@@ -21,12 +22,19 @@ A character vector.
 \code{layer_shapes()} lists the shape families that can serve as the outer
 layer (hollow carriers whose centre stays free) or as the inner layer of a
 two-layer item; \code{layer_rules()} lists the rules a layer of the given shape
-can follow (every rule supported for the shape except distribution of
-two, whose blank cells make no sense inside a layer).
+can follow: every rule supported for the shape except distribution of
+two, whose blank cells make no sense inside a layer, and, for the outer
+layer, except addition and subtraction, whose polygon rows always contain
+a triangle, which leaves no room for the inner layer; for the inner layer,
+progression is not available for carriers whose progression needs a size
+axis (dice, arrow, hammer, grid-dots, checkerboard, block-letter,
+box-lines), because both layers are pinned to one size, nor for the
+annulus, whose rings become hairlines at the inner scale.
 }
 \examples{
 layer_shapes("outer")
 layer_rules("dice")
+layer_rules("polygon", "outer")
 }
 \seealso{
 \code{\link[=generate_layered]{generate_layered()}}

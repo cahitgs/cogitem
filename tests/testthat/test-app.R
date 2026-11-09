@@ -69,7 +69,7 @@ test_that("the Shiny server logic generates, browses and administers items", {
 
     # Two-layer generation
     session$setInputs(layered = TRUE, shape = "polygon", rule = "dist-of-3",
-                      inner_shape = "dice", inner_rule = "progression", n = 2, seed = "2")
+                      inner_shape = "dice", inner_rule = "dist-of-3", n = 2, seed = "2")
     items(NULL)
     session$setInputs(generate = 2)
     for (k in 1:300) {

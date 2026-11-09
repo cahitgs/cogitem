@@ -55,9 +55,11 @@ candidate_perturbations <- function(correct) {
     }
   }
 
-  # Tier 3: big size delta
-  out[[length(out) + 1]] <- tag_tier(shape_set(correct, size = round2(max(0.35, correct$size * 0.55))), "size")
-  out[[length(out) + 1]] <- tag_tier(shape_set(correct, size = round2(min(1.0, correct$size * 1.25))), "size")
+  # Tier 3: big size delta (not inside a layer, where size is pinned)
+  if (!isTRUE(LAYER_CONTEXT$no_size)) {
+    out[[length(out) + 1]] <- tag_tier(shape_set(correct, size = round2(max(0.35, correct$size * 0.55))), "size")
+    out[[length(out) + 1]] <- tag_tier(shape_set(correct, size = round2(min(1.0, correct$size * 1.25))), "size")
+  }
 
   # Tier 4: count +/- 2
   out <- c(out, param_tweaks(correct, 2, "count2"))
@@ -129,7 +131,7 @@ make_distinct_distractors <- function(correct, siblings, count) {
     attempts <- attempts + 1
     tweak <- shape_set(correct,
                        strokeWidth = correct$strokeWidth + 2 * attempts,
-                       size = round2(max(0.3, correct$size - 0.1 * attempts)))
+                       size = if (isTRUE(LAYER_CONTEXT$no_size)) correct$size else round2(max(0.3, correct$size - 0.1 * attempts)))
     add(tweak, "fallback")
   }
   out

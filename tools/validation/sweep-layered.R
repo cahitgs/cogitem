@@ -1,6 +1,6 @@
 # Two-layer sweep over option counts: for every outer/inner pair below, generate
-# items with the default settings (perceptual audit on) and measure the
-# perceptual distance between every pair of options; report items that could
+# items with the default settings and measure the image-similarity
+# distance between every pair of options; report items that could
 # not be generated as well.
 # usage: Rscript sweep-layered.R <outdir> <tag> <counts e.g. 2,3,4,5,6,7,8>
 args <- commandArgs(trailingOnly = TRUE)
@@ -13,7 +13,7 @@ pairs <- list(c("polygon", "progression", "dice", "dist-of-3"),
               c("polygon", "dist-of-3", "checkerboard", "xor"),
               c("spike-ring", "progression", "grid-dots", "addition"),
               c("spike-ring", "identity", "arrow", "rotation"),
-              c("polygon", "addition", "box-lines", "dist-of-3"),
+              c("polygon", "dist-of-3", "box-lines", "dist-of-3"),
               c("spike-ring", "dist-of-3", "block-letter", "identity"),
               c("polygon", "identity", "star", "progression"),
               c("spike-ring", "progression", "polygon", "progression"),

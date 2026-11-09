@@ -2,14 +2,25 @@
 # own rule, superimposed cell by cell (what com() does in matRiks). The outer
 # layer is restricted to hollow carriers, pinned to one large size and must
 # not use size or fill, so its centre stays free; the inner layer is drawn at
-# INNER_SCALE of the cell on a small white disc. The two layers therefore
-# never overlap and each keeps its own distinctness checks.
+# INNER_SCALE of the cell on a small white disc, pinned to INNER_SIZE (the
+# largest size bucket) with its dots and markers enlarged by
+# INNER_FEATURE_BOOST, so size never carries a rule or a distractor in a
+# two-layer item. The two layers therefore never overlap and each keeps its
+# own distinctness checks.
 
 OUTER_SHAPES <- c("polygon", "spike-ring")
 INNER_SHAPES <- c("dice", "polygon", "star", "arrow", "hammer", "bars", "grid-dots",
                   "checkerboard", "box-lines", "block-letter", "annulus")
 LAYER_RULE_EXCLUDED <- "dist-of-2" # blank cells make no sense inside a layer
+OUTER_RULE_EXCLUDED <- c("addition", "subtraction") # polygon rows always contain a triangle, which leaves no room for the inner layer
 OUTER_SIZE <- 0.95
+INNER_SIZE <- 0.92           # inner carriers are pinned to the largest size bucket
+INNER_FEATURE_BOOST <- 1.5   # dots and markers of the inner layer are drawn 1.5 x larger than pure scaling, like its strokes
+# Carriers whose progression needs a size axis (size is their only secondary
+# axis, or their primary axis), plus the annulus, whose rings become hairlines
+# at the inner scale and then need a two-ring step: no progression inside a
+# layer.
+INNER_NO_PROGRESSION <- c(names(SECONDARY_AXES)[vapply(SECONDARY_AXES, function(a) all(a == "size"), logical(1))], "box-lines", "annulus")
 INNER_SCALE <- 0.36          # inner layer viewport as a fraction of the cell box
 INNER_LWD_BOOST <- 1.5       # inner strokes are drawn a little heavier than pure scaling
 INNER_LWD_FACTOR <- INNER_SCALE * INNER_LWD_BOOST # stroke factor of the inner layer, whatever its scale
@@ -17,6 +28,15 @@ KNOCKOUT_RADIUS <- 20        # white disc under the inner layer (cell units, 0-1
 INNER_CLEARANCE <- 0.636     # half diagonal of the drawn inner content per unit of viewport side
 MAX_SPIKE_DEPTH_OUTER <- 0.5 # keeps the ring of an outer spike-ring outside the disc
 LAYER_OPTIONS <- 4L          # options each layer is generated with (at most)
+# Size is pinned inside a layer: while a layer is generated, the perturbation
+# pool offers no size distractors (see candidate_perturbations()).
+LAYER_CONTEXT <- new.env(parent = emptyenv())
+in_layer_context <- function(expr) {
+  old <- LAYER_CONTEXT$no_size
+  LAYER_CONTEXT$no_size <- TRUE
+  on.exit(LAYER_CONTEXT$no_size <- old, add = TRUE)
+  expr
+}
 LAYER_TRIES <- 8L            # draws of a layer before an attempt is given up
 
 #' Carriers and rules available for two-layer items
@@ -24,15 +44,23 @@ LAYER_TRIES <- 8L            # draws of a layer before an attempt is given up
 #' `layer_shapes()` lists the shape families that can serve as the outer
 #' layer (hollow carriers whose centre stays free) or as the inner layer of a
 #' two-layer item; `layer_rules()` lists the rules a layer of the given shape
-#' can follow (every rule supported for the shape except distribution of
-#' two, whose blank cells make no sense inside a layer).
+#' can follow: every rule supported for the shape except distribution of
+#' two, whose blank cells make no sense inside a layer, and, for the outer
+#' layer, except addition and subtraction, whose polygon rows always contain
+#' a triangle, which leaves no room for the inner layer; for the inner layer,
+#' progression is not available for carriers whose progression needs a size
+#' axis (dice, arrow, hammer, grid-dots, checkerboard, block-letter,
+#' box-lines), because both layers are pinned to one size, nor for the
+#' annulus, whose rings become hairlines at the inner scale.
 #'
-#' @param layer `"outer"` or `"inner"`.
+#' @param layer `"outer"` or `"inner"` (for `layer_rules()` the default is
+#'   `"inner"`).
 #' @param shape One of [cog_shapes()].
 #' @return A character vector.
 #' @examples
 #' layer_shapes("outer")
 #' layer_rules("dice")
+#' layer_rules("polygon", "outer")
 #' @seealso [generate_layered()]
 #' @export
 layer_shapes <- function(layer = c("outer", "inner")) {
@@ -42,10 +70,16 @@ layer_shapes <- function(layer = c("outer", "inner")) {
 
 #' @rdname layer_shapes
 #' @export
-layer_rules <- function(shape) {
+layer_rules <- function(shape, layer = c("inner", "outer")) {
   shape <- match.arg(shape, SHAPES)
+  layer <- match.arg(layer)
   r <- supported_rules(shape)
-  r[!(r %in% LAYER_RULE_EXCLUDED)]
+  excluded <- if (layer == "outer") {
+    c(LAYER_RULE_EXCLUDED, OUTER_RULE_EXCLUDED)
+  } else {
+    c(LAYER_RULE_EXCLUDED, if (shape %in% INNER_NO_PROGRESSION) "progression")
+  }
+  r[!(r %in% excluded)]
 }
 
 # A cell or option of a two-layer item: `layers` holds the outer and the inner
@@ -76,10 +110,11 @@ outer_clear_radius <- function(s) {
   r - s$strokeWidth / 2 - 1
 }
 
-# Inner-layer scale for an item: INNER_SCALE unless the narrowest outer
-# carrier (a triangle, a deep spike ring) leaves less room; then the inner
-# viewport shrinks so that its drawn content, and the disc under it, stay
-# inside the clear interior.
+# Inner-layer scale that the narrowest outer carrier of an item allows:
+# INNER_SCALE unless a carrier (a triangle, a deep spike ring) leaves less
+# room for the drawn inner content and the disc under it. Generated items
+# never shrink (outer_layer_ok() rejects such carriers); the function guards
+# hand-made stacks and records `meta$inner_scale`.
 inner_scale_for <- function(outer_shapes) {
   clear <- min(vapply(outer_shapes, outer_clear_radius, numeric(1)))
   min(INNER_SCALE, floor(clear / INNER_CLEARANCE) / 100)
@@ -88,10 +123,10 @@ inner_scale_for <- function(outer_shapes) {
 is_stack <- function(s) identical(s$kind, "stack")
 
 # Layer k of a stack as it is drawn: the inner layer fills `inner_scale` of
-# the cell (INNER_SCALE, or less inside a narrow outer carrier) with strokes
-# scaled by the fixed INNER_LWD_FACTOR, so a shrunken inner layer keeps its
-# line weight and the symbolic perceptibility rules (count, size, stroke
-# width, rotation) judge it at its real size.
+# the cell (INNER_SCALE for generated items) with strokes scaled by the
+# fixed INNER_LWD_FACTOR, so the inner layer keeps its line weight and the
+# symbolic design constraints (count, size, stroke width, rotation) judge it
+# at its real size.
 layer_at_scale <- function(s, k) {
   x <- s$layers[[k]]
   if (k == 2L) {
@@ -123,7 +158,7 @@ build_stack <- function(s, lw) {
   outer <- build_shape(s$layers[[1]], lw)
   disc <- circleGrob(0.5, 0.5, r = unit(KNOCKOUT_RADIUS * sc / INNER_SCALE / 100, "snpc"),
                      gp = gpar(fill = PALETTE$cell, col = NA))
-  inner <- gTree(children = build_shape(s$layers[[2]], lw * INNER_LWD_FACTOR),
+  inner <- gTree(children = build_shape(s$layers[[2]], lw * INNER_LWD_FACTOR, boost = INNER_FEATURE_BOOST),
                  vp = viewport(width = unit(sc, "snpc"),
                                height = unit(sc, "snpc")))
   do.call(gList, c(as.list(outer), list(disc, inner)))
@@ -131,7 +166,9 @@ build_stack <- function(s, lw) {
 
 # An outer-layer item is usable when neither its rule nor its distractors rely
 # on size or fill (the layer is pinned to one size and keeps its centre free)
-# and, for spike rings, the ring stays outside the central disc.
+# and, for spike rings, the ring stays outside the central disc, and when
+# every carrier leaves room for the inner layer at INNER_SCALE (a triangle or
+# a deep spike ring would force it to shrink).
 outer_layer_ok <- function(item) {
   m <- item$meta
   if (identical(m$axis, "size") || identical(m$secondary_axis, "size")) return(FALSE)
@@ -140,12 +177,30 @@ outer_layer_ok <- function(item) {
     depth <- vapply(all_item_shapes(item), function(s) s$params$spikeDepth %||% 0.35, numeric(1))
     if (any(depth > MAX_SPIKE_DEPTH_OUTER)) return(FALSE)
   }
+  if (inner_scale_for(all_item_shapes(item)) < INNER_SCALE) return(FALSE)
   TRUE
 }
 
 pin_outer_size <- function(item) {
   item$cells <- lapply(item$cells, function(row) lapply(row, shape_set, size = OUTER_SIZE))
   item$options <- lapply(item$options, shape_set, size = OUTER_SIZE)
+  item
+}
+
+# An inner-layer item is usable when neither its rule nor its distractors rely
+# on size: the layer is pinned to INNER_SIZE, the largest size bucket, so that
+# its features stay as large as the disc allows.
+inner_layer_ok <- function(item) {
+  m <- item$meta
+  if (identical(m$axis, "size") || identical(m$primary_axis, "size") ||
+      identical(m$secondary_axis, "size")) return(FALSE)
+  if (any(m$distractor_tiers %in% "size")) return(FALSE)
+  TRUE
+}
+
+pin_inner_size <- function(item) {
+  item$cells <- lapply(item$cells, function(row) lapply(row, shape_set, size = INNER_SIZE))
+  item$options <- lapply(item$options, shape_set, size = INNER_SIZE)
   item
 }
 
@@ -260,21 +315,22 @@ compose_layered <- function(outer, inner, n_options) {
   )
 }
 
-# Each layer is generated with at most LAYER_OPTIONS options of its own, so
-# that the outer layer never has to resort to size or fill distractors; the
+# Each layer is generated with at most LAYER_OPTIONS options of its own and
+# without size distractors (see in_layer_context()), so that the outer layer
+# never has to resort to fill distractors either; the
 # composed item takes its n_options - 1 distractors from the combinations of
 # the layers' wrong options.
 make_layered_one <- function(outer_spec, inner_spec, n_options) {
   layer_n <- min(n_options, LAYER_OPTIONS)
   draw_layer <- function(spec, ok, what) {
     for (k in seq_len(LAYER_TRIES)) {
-      it <- tryCatch(generate_one(spec[1], spec[2], layer_n), error = function(e) NULL)
+      it <- tryCatch(in_layer_context(generate_one(spec[1], spec[2], layer_n)), error = function(e) NULL)
       if (!is.null(it) && is_item_valid(it, layer_n) && ok(it)) return(it)
     }
     stop(what, " layer rejected", call. = FALSE)
   }
   outer <- pin_outer_size(draw_layer(outer_spec, outer_layer_ok, "outer"))
-  inner <- draw_layer(inner_spec, function(it) TRUE, "inner")
+  inner <- pin_inner_size(draw_layer(inner_spec, inner_layer_ok, "inner"))
   compose_layered(outer, inner, n_options)
 }
 
@@ -289,7 +345,7 @@ check_layer_spec <- function(spec, which) {
     stop(sprintf("The %s layer shape must be one of: %s", which, paste(shapes, collapse = ", ")),
          call. = FALSE)
   }
-  rules <- layer_rules(spec[1])
+  rules <- layer_rules(spec[1], which)
   if (!(spec[2] %in% rules)) {
     stop(sprintf("Rule '%s' is not available for the %s layer shape '%s'; choose from: %s",
                  spec[2], which, spec[1], paste(rules, collapse = ", ")), call. = FALSE)
@@ -319,12 +375,18 @@ check_layer_spec <- function(spec, which) {
 #' combinations of the layers' wrong options, so any option count from 2 to
 #' 8 works. All option-distinctness checks of single-layer items apply
 #' layer by layer, the inner layer being judged at the scale it is drawn
-#' (36 % of the cell, or less when the narrowest outer carrier of the item,
-#' such as a triangle, leaves less clear room; `meta$inner_scale`)
-#' (an inner stroke-width or small size step does not count as a
-#' difference). The perceptual audit is switched on by default for two-layer
-#' items (`perceptual = TRUE`); it compares the layers one by one, each at
-#' full tile size (see [perceptual_distance()]).
+#' (36 % of the cell, recorded in `meta$inner_scale`; an inner stroke-width
+#' step does not count as a difference). Both layers are pinned to one size,
+#' the outer layer to 0.95 and the inner layer to the largest size bucket
+#' (0.92), and size never carries a rule or a distractor in a two-layer
+#' item; the dots and markers of the inner layer are drawn 1.5 times larger
+#' than pure scaling, like its strokes. Outer carriers that would leave less
+#' room, a triangle or a deep spike ring, are rejected and redrawn, so the
+#' inner layer is never shrunk. Items are designed for cells of at least
+#' 144 px on screen. The experimental image-similarity screen is off by
+#' default (`perceptual = FALSE`), as for single-layer items; when switched
+#' on it compares the layers one by one, each at full tile size (see
+#' [perceptual_distance()]).
 #'
 #' @param outer,inner Character vectors `c(shape, rule)` describing the outer
 #'   and the inner layer; see [layer_shapes()] and [layer_rules()].
@@ -340,7 +402,7 @@ check_layer_spec <- function(spec, which) {
 #' @seealso [generate_items()], [layer_shapes()], [audit_items()]
 #' @export
 generate_layered <- function(outer, inner, n = 10, seed = NULL, n_options = 4,
-                             max_attempts = NULL, perceptual = TRUE,
+                             max_attempts = NULL, perceptual = FALSE,
                              perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
                              progress = NULL) {
   outer <- check_layer_spec(outer, "outer")

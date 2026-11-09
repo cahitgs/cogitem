@@ -32,14 +32,15 @@ is correct; the rest are distractors.}
 
 \item{max_attempts}{Maximum number of generation attempts before giving up.}
 
-\item{perceptual}{Also run the renderer-based \code{\link[=audit_item]{audit_item()}} on every
-candidate and discard items whose options or cells are perceptually
-confusable. Slower (each item is rasterised) and needs \strong{ragg} or a
-cairo-capable R; the result is reproducible for a given seed on the same
-graphics stack.}
+\item{perceptual}{Also run the experimental image-similarity screen
+(\code{\link[=audit_item]{audit_item()}}) on every candidate and discard items in which two
+options or two cells render nearly identically at 96 px. Off by default
+for every item type. Slower (each item is rasterised) and needs \strong{ragg}
+or a cairo-capable R; the result is reproducible for a given seed on the
+same graphics stack.}
 
 \item{perceptual_threshold}{Distance below which two renderings count as
-confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
+near-identical, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 
 \item{progress}{Optional function called after every accepted item and at
 least every 25 attempts with three arguments: the number of items
@@ -50,7 +51,7 @@ generated so far, the number requested and the number of attempts. Return
 \value{
 An object of class \code{cog_item_set}: a list of \code{cog_item} objects
 with a \code{meta} attribute (shape, rule, seed, counts of skipped
-duplicates, invalid and perceptually ambiguous attempts).
+duplicates, invalid attempts and attempts dropped by the screen).
 }
 \description{
 Produces \code{n} distinct, validated 3x3 matrix items for one shape-rule
@@ -59,7 +60,7 @@ same items: the RNG kind is fixed to Mersenne-Twister (inversion, rejection
 sampling) for the duration of the call, the caller's RNG state is restored
 afterwards and item identifiers are derived from the seeded stream, so the
 result is identical in any R session with the same package version. Only
-the perceptual audit (\code{perceptual = TRUE}) depends in addition on the
+the optional image-similarity screen (\code{perceptual = TRUE}) depends in addition on the
 graphics engine. Items whose options are not visually distinct (see
 \code{\link[=is_item_valid]{is_item_valid()}}) are discarded and regenerated; structural duplicates
 (see \code{\link[=item_signature]{item_signature()}}) are removed.

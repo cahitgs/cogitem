@@ -11,7 +11,7 @@ generate_layered(
   seed = NULL,
   n_options = 4,
   max_attempts = NULL,
-  perceptual = TRUE,
+  perceptual = FALSE,
   perceptual_threshold = DEFAULT_PERCEPTUAL_THRESHOLD,
   progress = NULL
 )
@@ -30,14 +30,15 @@ is correct; the rest are distractors.}
 
 \item{max_attempts}{Maximum number of generation attempts before giving up.}
 
-\item{perceptual}{Also run the renderer-based \code{\link[=audit_item]{audit_item()}} on every
-candidate and discard items whose options or cells are perceptually
-confusable. Slower (each item is rasterised) and needs \strong{ragg} or a
-cairo-capable R; the result is reproducible for a given seed on the same
-graphics stack.}
+\item{perceptual}{Also run the experimental image-similarity screen
+(\code{\link[=audit_item]{audit_item()}}) on every candidate and discard items in which two
+options or two cells render nearly identically at 96 px. Off by default
+for every item type. Slower (each item is rasterised) and needs \strong{ragg}
+or a cairo-capable R; the result is reproducible for a given seed on the
+same graphics stack.}
 
 \item{perceptual_threshold}{Distance below which two renderings count as
-confusable, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
+near-identical, see \code{\link[=perceptual_distance]{perceptual_distance()}}.}
 
 \item{progress}{Optional function called after every accepted item and at
 least every 25 attempts with three arguments: the number of items
@@ -71,12 +72,18 @@ options of its own; with more options the distractors are drawn from the
 combinations of the layers' wrong options, so any option count from 2 to
 8 works. All option-distinctness checks of single-layer items apply
 layer by layer, the inner layer being judged at the scale it is drawn
-(36 \% of the cell, or less when the narrowest outer carrier of the item,
-such as a triangle, leaves less clear room; \code{meta$inner_scale})
-(an inner stroke-width or small size step does not count as a
-difference). The perceptual audit is switched on by default for two-layer
-items (\code{perceptual = TRUE}); it compares the layers one by one, each at
-full tile size (see \code{\link[=perceptual_distance]{perceptual_distance()}}).
+(36 \% of the cell, recorded in \code{meta$inner_scale}; an inner stroke-width
+step does not count as a difference). Both layers are pinned to one size,
+the outer layer to 0.95 and the inner layer to the largest size bucket
+(0.92), and size never carries a rule or a distractor in a two-layer
+item; the dots and markers of the inner layer are drawn 1.5 times larger
+than pure scaling, like its strokes. Outer carriers that would leave less
+room, a triangle or a deep spike ring, are rejected and redrawn, so the
+inner layer is never shrunk. Items are designed for cells of at least
+144 px on screen. The experimental image-similarity screen is off by
+default (\code{perceptual = FALSE}), as for single-layer items; when switched
+on it compares the layers one by one, each at full tile size (see
+\code{\link[=perceptual_distance]{perceptual_distance()}}).
 }
 \examples{
 items <- generate_layered(c("polygon", "progression"), c("dice", "dist-of-3"),
