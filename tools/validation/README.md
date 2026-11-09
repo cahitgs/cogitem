@@ -54,3 +54,15 @@ Rscript tools/validation/audit-display-size.R <outdir> display 4,6,8 144
 
 The numbers in the manuscript were obtained with the package version named
 there (see the Technical Evaluation section and the Availability statement).
+
+## Development note on the two-layer redesign (0.1.3)
+
+The composite-cell screen at 144 px (`audit-display-size.R ... 144`) was the
+measurement behind the 0.1.3 two-layer design. With version 0.1.2 (inner layer
+at a free size, dots scaled down with it), the key and its closest inner-only
+distractor fell below the screen's constant in 177 of 1,224 items (one item
+per combination and option count), 92 of them with inner dice. With the
+0.1.3 design (inner layer pinned to the largest size bucket, dots and markers
+drawn 1.5 times larger, no shrunken inner layer, 264 combinations) the same
+measurement flags 8 of 738 items. The screen is a fixed-resolution proxy, not
+a perceptual validation; these numbers document a design decision.
